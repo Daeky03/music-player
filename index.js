@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import favicon from 'serve-favicon';
 import yts from 'yt-search';
-import ytdl from 'ytdl-core';
+import play from 'play-dl';
 import cors from 'cors';
 
 
@@ -50,20 +50,23 @@ app.get('/api/search', async (req, res) => {
 });
 
 app.get('/api/yt-stream', async (req, res) => {
-  const { url } = req.query;
-  if (!url || !ytdl.validateURL(url)) return res.status(400).json({ error: 'Geçersiz URL' });
-
   try {
-    const info = await ytdl.getInfo(url);
-    // Yalnızca audio formatlarını al
-    const format = ytdl.chooseFormat(info.formats, { quality: 'highestaudio' });
-    if (!format || !format.url) return res.status(500).json({ error: 'Stream bulunamadı' });
+    const url = req.query.url;
+    if (!url) return res.status(400).json({error: 'url gerekli'});
 
-    // JSON ile frontende URL gönder
-    res.json({ streamUrl: format.url, title: info.videoDetails.title, artist: info.videoDetails.author.name });
+    // info çek
+    const info = await play.video_info(url);
+    const stream = await play.stream_from_info(info);
+
+    // stream URL’sini döndür
+    res.json({
+      audioUrl: stream.url,
+      title: info.video_details.title,
+      thumbnail: info.video_details.thumbnails[0].url
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Stream alınamadı' });
+    res.status(500).json({error: 'YouTube stream alınamadı'});
   }
 });
 
