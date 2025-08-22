@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import favicon from 'serve-favicon';
+import yts from 'yt-search';
 
 
 dotenv.config();
@@ -24,6 +25,25 @@ app.get('/', (req, res) => {
 res.render('layout', { appName: 'Music PWA', title: "SLP", content: "index" });
 });
 
+app.get('/api/search', async (req, res) => {
+  const q = req.query.q;
+  if(!q) return res.status(400).json({ error: 'Query missing' });
+
+  try {
+    const r = await yts(q);
+    // sadece ilk 10 videoyu al
+    const results = r.videos.slice(0,10).map(v=>({
+      title: v.title,
+      url: v.url,
+      duration: v.timestamp,
+      thumbnail: v.image,
+      author: v.author.name
+    }));
+    res.json({ results });
+  } catch(e){
+    res.status(500).json({ error: 'Search failed' });
+  }
+});
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 
