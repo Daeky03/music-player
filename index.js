@@ -21,7 +21,7 @@ try { app.use(favicon(path.join(__dirname, 'public','icons','icon-192.png'))); }
 
 
 app.get('/', (req, res) => {
-res.render('index', { appName: process.env.APP_NAME || 'Music PWA' });
+res.render('layout', { appName: process.env.APP_NAME || 'Music PWA' });
 });
 
 
