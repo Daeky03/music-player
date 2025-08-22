@@ -222,7 +222,7 @@ async function renderLibrary(filter=''){
             <img src="${t.thumbnail}" class="w-12 h-12 rounded-lg"/>
             <div>
               <div class="font-medium">${t.title}</div>
-              <div class="text-xs text-gray-600 dark:text-white/60">${t.author.name}</div>
+              <div class="text-xs text-gray-600 dark:text-white/60">${t.author}</div>
             </div>
           </div>
           <div class="flex items-center gap-2">
