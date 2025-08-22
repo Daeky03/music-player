@@ -52,8 +52,8 @@ const audio=document.getElementById('audioEl');
 let queue=[]; let currentIndex=-1; let repeat='off'; let shuffle=false; // repeat: off|one|all
 
 // Mini & Expanded player refs
-const mini={ art:$('#npArtMini'), title:$('#npTitleMini'), artist:$('#npArtistMini'), seek:$('#seekMini'), btnPlay:$('#btnMiniPlay'), btnPrev:$('#btnMiniPrev'), btnNext:$('#btnMiniNext'), btnRew:$('#btnMiniRew'), btnFf:$('#btnMiniFf') };
-const xp={ art:$('#npArt'), title:$('#npTitle'), artist:$('#npArtist'), cur:$('#npCur'), dur:$('#npDur'), seek:$('#seek'), btnClose:$('#btnClose'), btnPlay:$('#btnPlay'), btnPrev:$('#btnPrev'), btnNext:$('#btnNext'), btnRew:$('#btnRew'), btnFf:$('#btnFf'), btnRepeat:$('#btnRepeat'), btnShuffle:$('#btnShuffle') };
+const mini={ art:$('#npArtMini'), title:$('#npTitleMini'), artist:$('#npArtistMini'), btnPlay:$('#btnMiniPlay'), btnPrev:$('#btnMiniPrev'), btnNext:$('#btnMiniNext'), btnRew:$('#btnMiniRew'), btnFf:$('#btnMiniFf') };
+const xp={ art:$('#npArt'), title:$('#npTitle'), artist:$('#npArtist'), cur:$('#npCur'), dur:$('#npDur'), btnClose:$('#btnClose'), btnPlay:$('#btnPlay'), btnPrev:$('#btnPrev'), btnNext:$('#btnNext'), btnRew:$('#btnRew'), btnFf:$('#btnFf'), btnRepeat:$('#btnRepeat'), btnShuffle:$('#btnShuffle') };
 const expandBtn=$('#btnExpand'); const expandedPanel=$('#expandedPlayer'); const miniPanel=$('#miniPlayer');
 
 function $(sel){ return document.querySelector(sel); }
@@ -92,7 +92,15 @@ expandBtn.addEventListener('click',()=>{ expandedPanel.classList.remove('hidden'
 xp.btnClose.addEventListener('click',()=>{ expandedPanel.classList.add('hidden'); miniPanel.classList.remove('hidden'); });
 
 // Progress
-function syncSeek(){ if(!isFinite(audio.duration)) return; const v=Math.floor(audio.currentTime); const d=Math.floor(audio.duration); mini.seek.max=d; mini.seek.value=v; xp.seek.max=d; xp.seek.value=v; xp.cur.textContent=fmt(v); xp.dur.textContent=fmt(d); }
+function syncSeek(){
+  if(!isFinite(audio.duration)) return;
+  const v = Math.floor(audio.currentTime);
+  const d = Math.floor(audio.duration);
+  if (xp.seek) { xp.seek.max = d; xp.seek.value = v; }
+  if (xp.cur) xp.cur.textContent = fmt(v);
+  if (xp.dur) xp.dur.textContent = fmt(d);
+}
+
 audio.addEventListener('timeupdate', syncSeek);
 audio.addEventListener('loadedmetadata', syncSeek);
 mini.seek.addEventListener('input', ()=> audio.currentTime = +mini.seek.value);
@@ -133,7 +141,23 @@ playlistListEl.addEventListener('click',(e)=>{
   if(b.classList.contains('del')){ if(!confirm('Silinsin mi?')) return; playlists=playlists.filter(x=>x.id!==id); save(LS_PLAYLISTS, playlists); renderPlaylists(); }
 });
 
-async function renderDownloads(){ downloadListEl.innerHTML=''; const c=await caches.open('offline-audio-v1'); const keys=await c.keys(); for(const req of keys){ const url=req.url.replace(location.origin,''); const t=tracks.find(x=>x.url===url); const name=t? `${t.title} — ${t.artist||''}`:url; const li=document.createElement('li'); li.className='flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10'; li.innerHTML=`<div class="truncate">${name}</div><div class="flex gap-2"><button data-url="${url}" class="play px-3 py-1.5 rounded-full bg-accent text-white">Çal</button><button data-url="${url}" class="rm px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Sil</button></div>`; downloadListEl.appendChild(li); }
+async function renderDownloads(){
+  downloadListEl.innerHTML='';
+  const c = await caches.open('offline-audio-v1');
+  const keys = await c.keys();
+  for(const req of keys){
+    const url = req.url.replace(location.origin,'');
+    const t = tracks.find(x => x.url === url);
+    const name = t ? (t.title + (t.artist ? ` — ${t.artist}`:'')) : decodeURIComponent(url.split('/').pop());
+    const li = document.createElement('li');
+    li.className = 'flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
+    li.innerHTML = `<div class="truncate">${name}</div>
+      <div class="flex gap-2">
+        <button data-url="${url}" class="play px-3 py-1.5 rounded-full bg-accent text-white">Çal</button>
+        <button data-url="${url}" class="rm px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Sil</button>
+      </div>`;
+    downloadListEl.appendChild(li);
+  }
 }
 
 downloadListEl.addEventListener('click',async(e)=>{ const b=e.target.closest('button'); if(!b) return; const url=b.dataset.url; const c=await caches.open('offline-audio-v1'); if(b.classList.contains('play')){ const hit=await c.match(url); if(hit){ const blob=await hit.blob(); audio.src=URL.createObjectURL(blob); audio.play(); } } if(b.classList.contains('rm')){ await c.delete(url); renderDownloads(); }});
@@ -152,24 +176,26 @@ function updateMediaSession(t){ if(!('mediaSession' in navigator)) return; navig
 }
 
 // Bildirim + aksiyonlar (SW üzerinden)
-async function showNowPlayingNotification(t){ try{
-  if(!('serviceWorker' in navigator) || Notification.permission!=='granted') return;
-  const reg = await navigator.serviceWorker.getRegistration(); if(!reg) return;
-  await reg.showNotification('Çalınıyor: '+t.title, {
-    body: t.artist||'',
-    icon: t.artwork||'/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
-    tag: 'now-playing',
-    renotify: true,
-    actions: [
-      { action:'prev', title:'⏮' },
-      { action:'rew', title:'-10s' },
-      { action:'toggle', title: audio.paused?'▶':'⏸' },
-      { action:'ff', title:'+10s' },
-      { action:'next', title:'⏭' }
-    ]
-  });
- }catch(e){ /* sessiz geç */ }
+async function showNowPlayingNotification(t){
+  try{
+    if (!('serviceWorker' in navigator) || Notification.permission !== 'granted') return;
+    const reg = await navigator.serviceWorker.getRegistration(); if (!reg) return;
+    await reg.showNotification('Çalınıyor: ' + t.title, {
+      body: (t.artist||'') + ' — SLP Player',
+      icon: t.artwork || '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: 'now-playing',
+      requireInteraction: false,
+      renotify: true,
+      actions: [
+        { action:'prev',   title:'⏮ Önceki' },
+        { action:'rew',    title:'-10s' },
+        { action:'toggle', title: audio.paused ? '▶ Oynat' : '⏸ Duraklat' },
+        { action:'ff',     title:'+10s' },
+        { action:'next',   title:'⏭ Sonraki' }
+      ]
+    });
+  }catch{}
 }
 
 // SW mesajları (bildirim aksiyonlarını yakala)
