@@ -75,14 +75,10 @@ const bestAudio = audioFormats[0];
     
     
     // stream URL’sini döndür
-    const source = await play.stream_from_info(info.format[0].url);
-    const resource = createAudioResource(source.stream, {
-     inputType : source.type
-})
+    res.json({ audioUrl: info.format[0].url.replace(`itag=${info.format[0].itag}`, `itag=${bestAudio.itag}`) })
 
     // Yanıtı direkt olarak client'a yolluyoruz
-    res.setHeader('Content-Type', 'audio/mp3'); // veya mimeType neyse onu kullanabilirsin
-    response.data.pipe(resource);
+    
   } catch (err) {
     console.error(err);
     res.status(500).json({error: 'YouTube stream alınamadı'});
