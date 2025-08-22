@@ -253,12 +253,17 @@ playlistListEl.addEventListener('click',async(e)=>{
 
 // Paylaşım: veritabanı yok -> URL fragmente base64 JSON
 // Paylaşım: veritabanı yok -> URL fragmente base64 JSON
+// Playlist paylaş
 function sharePlaylist(pl){
-  const payload = { name: pl.name, items: pl.items };
-  // JSON'u LZ-String ile sıkıştır
+  const payload = {
+    name: pl.name,
+    items: pl.items,
+    cover: pl.cover ? pl.cover : null  // base64 veya URL
+  };
+
   const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(payload));
   const url = `${location.origin}${location.pathname}#pl=${compressed}`;
-  
+
   if(navigator.share){
     navigator.share({ title:'Playlist', text:pl.name, url }).catch(()=>{});
   }
@@ -271,6 +276,7 @@ function sharePlaylist(pl){
 }
 
 
+
 // Link ile içe aktarma
 // Link ile içe aktarma (SweetAlert ile bildirim)
 (function importFromHash(){
@@ -280,12 +286,14 @@ function sharePlaylist(pl){
     const json = LZString.decompressFromEncodedURIComponent(m[1]);
     if(!json) throw new Error('Bozuk veri');
     const payload = JSON.parse(json);
-    const newPl = {
-      id: crypto.randomUUID(),
-      name: payload.name || 'Paylaşılan',
-      cover: null,
-      items: Array.isArray(payload.items) ? payload.items : []
-    };
+    // importFromHash
+const newPl = {
+  id: crypto.randomUUID(),
+  name: payload.name || 'Paylaşılan',
+  cover: payload.cover || null,  // URL veya base64
+  items: Array.isArray(payload.items) ? payload.items : []
+};
+    
     playlists.push(newPl);
     save(LS_PLAYLISTS, playlists);
     renderPlaylists();
