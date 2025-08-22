@@ -1,23 +1,115 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="tr" class="h-full">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>SLP</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-tailwind.config = { theme: { extend: { colors: { brand: '#1DB954', ink: '#0b0b0b', panel: '#111111' } } } }
-</script>
-<link rel="manifest" href="/manifest.webmanifest">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= title || 'SLP' %></title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <script>
+    // Tema başlangıcı (FOUC engelle)
+    (function(){
+      const ls = localStorage.getItem('theme') || 'dark';
+      if(ls === 'dark') document.documentElement.classList.add('dark');
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            ink: '#0b0b0f',       // koyu zemin
+            panel: '#12121a',     // kart zemin
+            accent: '#a855f7',    // mor vurgu
+            accent2: '#7c3aed',
+            lightBg: '#f6f7fb'
+          },
+          boxShadow: {
+            glass: '0 10px 30px rgba(0,0,0,0.35)'
+          },
+          borderRadius: { xl2: '1.25rem' }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* scrollbar ufak dokunuş */
+    *{ scrollbar-width: thin; }
+  </style>
 </head>
-<body class="min-h-screen bg-ink text-white">
-<div class="max-w-6xl mx-auto">
-<header class="flex items-center justify-between p-4">
-<h1 class="text-2xl font-semibold">SLP</h1>
-</header>
-<main class="p-4"> <%- include('index') %> </main>
-<footer class="p-4 text-xs text-white/60">Offline: service worker + cache | Veriler: localStorage</footer>
-</div>
-<script type="module" src="/js/app.js"></script>
+<body class="h-full bg-lightBg text-gray-900 dark:bg-ink dark:text-white">
+  <div class="grid grid-rows-[auto,1fr] min-h-screen">
+    <header class="px-4 py-3 border-b border-black/5 dark:border-white/10 bg-white/80 dark:bg-panel/80 backdrop-blur shadow-sm">
+      <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <img src="/icons/icon-192.png" class="w-8 h-8 rounded" alt="logo"/>
+          <h1 class="text-lg font-semibold tracking-tight">SLP</h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="themeToggle" class="px-3 py-1.5 rounded-full text-sm bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20">Tema: <span id="themeLabel">Koyu</span></button>
+          <button id="installBtn" class="hidden px-3 py-1.5 rounded-full text-sm bg-accent text-white hover:bg-accent2">Yükle</button>
+        </div>
+      </div>
+    </header>
+    <main class="max-w-6xl mx-auto w-full p-4">
+      <%- include(content) %>
+    </main>
+  </div>
+
+  <!-- Mini/Expanded Player -->
+  <div id="playerBar" class="fixed inset-x-0 bottom-0">
+    <div class="mx-auto max-w-3xl">
+      <!-- Mini bar -->
+      <div id="miniPlayer" class="m-3 rounded-2xl bg-white/90 dark:bg-panel/90 backdrop-blur shadow-glass px-3 py-2 flex items-center gap-3">
+        <img id="npArtMini" src="/icons/icon-192.png" class="w-10 h-10 rounded-lg object-cover" alt="cover"/>
+        <div class="flex-1 min-w-0">
+          <div id="npTitleMini" class="truncate text-sm font-medium">Çalan yok</div>
+          <div id="npArtistMini" class="truncate text-xs text-gray-600 dark:text-white/60">—</div>
+          <input id="seekMini" type="range" min="0" max="100" value="0" class="w-full"/>
+        </div>
+        <div class="flex items-center gap-1">
+          <button id="btnMiniRew" title="-10 sn" class="px-2 py-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10">⟲10</button>
+          <button id="btnMiniPrev" title="Önceki" class="px-2 py-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10">⏮</button>
+          <button id="btnMiniPlay" class="px-3 py-2 rounded-full bg-accent text-white">▶</button>
+          <button id="btnMiniNext" title="Sonraki" class="px-2 py-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10">⏭</button>
+          <button id="btnMiniFf" title="+10 sn" class="px-2 py-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10">10⟳</button>
+          <button id="btnExpand" title="Büyüt" class="ml-1 px-2 py-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10">⤢</button>
+        </div>
+      </div>
+
+      <!-- Expanded panel -->
+      <div id="expandedPlayer" class="hidden m-3 rounded-3xl bg-white/95 dark:bg-panel/95 backdrop-blur shadow-glass p-4">
+        <div class="flex items-start gap-4">
+          <img id="npArt" src="/icons/icon-512.png" class="w-32 h-32 rounded-2xl object-cover" alt="cover"/>
+          <div class="flex-1 min-w-0">
+            <div id="npTitle" class="text-xl font-semibold truncate">Çalan yok</div>
+            <div id="npArtist" class="text-sm text-gray-600 dark:text-white/60 truncate">—</div>
+            <div class="mt-4 flex items-center gap-2">
+              <span id="npCur" class="text-xs w-10 text-right">0:00</span>
+              <input id="seek" type="range" min="0" max="100" value="0" class="w-full"/>
+              <span id="npDur" class="text-xs w-10">0:00</span>
+            </div>
+            <div class="mt-3 flex items-center gap-2">
+              <button id="btnClose" class="px-2 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Kapat</button>
+              <div class="flex-1"></div>
+              <button id="btnRew" class="px-3 py-2 rounded-full bg-black/5 dark:bg-white/10">⟲ 10</button>
+              <button id="btnPrev" class="px-3 py-2 rounded-full bg-black/5 dark:bg-white/10">⏮</button>
+              <button id="btnPlay" class="px-4 py-2 rounded-full bg-accent text-white">▶</button>
+              <button id="btnNext" class="px-3 py-2 rounded-full bg-black/5 dark:bg-white/10">⏭</button>
+              <button id="btnFf" class="px-3 py-2 rounded-full bg-black/5 dark:bg-white/10">10 ⟳</button>
+              <button id="btnRepeat" class="px-2 py-2 rounded-full bg-black/5 dark:bg-white/10" title="Tekrar modu">⟲</button>
+              <button id="btnShuffle" class="px-2 py-2 rounded-full bg-black/5 dark:bg-white/10" title="Karıştır">🔀</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <audio id="audioEl"></audio>
+  <script type="module" src="/js/app.js"></script>
 </body>
 </html>
