@@ -1,0 +1,54 @@
+    <%- include('layout') %>
+
+<div class="grid md:grid-cols-[240px,1fr] gap-4">
+  <!-- sidebar -->
+  <aside class="bg-panel p-3 rounded-xl">
+    <div class="mb-3">
+      <input id="search" placeholder="Ara: şarkı, sanatçı, albüm" class="w-full px-3 py-2 rounded-lg bg-black/40" />
+    </div>
+    <nav class="space-y-2">
+      <button id="tab-library" class="w-full text-left px-3 py-2 rounded-lg bg-white/10">Kütüphane</button>
+      <button id="tab-playlists" class="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5">Çalma Listeleri</button>
+      <button id="tab-downloaded" class="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5">İndirilenler</button>
+    </nav>
+    <div class="mt-4">
+      <button id="newPlaylistBtn" class="w-full px-3 py-2 rounded-full bg-brand text-black">Yeni Playlist</button>
+    </div>
+  </aside>
+
+  <!-- main -->
+  <section>
+    <div id="view-library" class="bg-panel p-3 rounded-xl">
+      <h2 class="text-lg font-semibold mb-3">Kütüphane</h2>
+      <div id="tracks" class="grid gap-2"></div>
+    </div>
+
+    <div id="view-playlists" class="bg-panel p-3 rounded-xl hidden">
+      <h2 class="text-lg font-semibold mb-3">Çalma Listeleri</h2>
+      <ul id="playlistList" class="space-y-2"></ul>
+    </div>
+
+    <div id="view-downloaded" class="bg-panel p-3 rounded-xl hidden">
+      <h2 class="text-lg font-semibold mb-3">İndirilenler (Offline)</h2>
+      <ul id="downloadList" class="space-y-2"></ul>
+    </div>
+  </section>
+</div>
+
+<!-- player -->
+<div class="fixed bottom-4 left-1/2 -translate-x-1/2 w-[95%] md:w-[60%] bg-black/70 backdrop-blur rounded-full p-3 flex items-center gap-3">
+  <img id="nowArt" src="/icons/icon-192.png" class="w-12 h-12 rounded-lg object-cover" />
+  <div class="flex-1">
+    <div id="nowTitle" class="font-medium">Çalan yok</div>
+    <div class="text-xs text-white/60" id="nowArtist"></div>
+    <input id="seek" type="range" min="0" max="100" value="0" class="w-full mt-2" />
+  </div>
+  <div class="flex items-center gap-2">
+    <button id="prevBtn" class="px-3 py-2 rounded-full bg-white/10">◀</button>
+    <button id="playBtn" class="px-4 py-2 rounded-full bg-brand text-black">Play</button>
+    <button id="nextBtn" class="px-3 py-2 rounded-full bg-white/10">▶</button>
+  </div>
+</div>
+
+
+<audio id="audioEl"></audio>
