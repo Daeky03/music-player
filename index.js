@@ -5,6 +5,10 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import favicon from 'serve-favicon';
 import yts from 'yt-search';
+import ytdl from 'ytdl-core';
+import cors from 'cors';
+
+
 
 
 dotenv.config();
@@ -12,7 +16,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
-
+app.use(cors());
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -44,6 +48,25 @@ app.get('/api/search', async (req, res) => {
     res.status(500).json({ error: 'Search failed' });
   }
 });
+
+app.get('/api/yt-stream', async (req, res) => {
+  const { url } = req.query;
+  if (!url || !ytdl.validateURL(url)) return res.status(400).json({ error: 'Geçersiz URL' });
+
+  try {
+    const info = await ytdl.getInfo(url);
+    // Yalnızca audio formatlarını al
+    const format = ytdl.chooseFormat(info.formats, { quality: 'highestaudio' });
+    if (!format || !format.url) return res.status(500).json({ error: 'Stream bulunamadı' });
+
+    // JSON ile frontende URL gönder
+    res.json({ streamUrl: format.url, title: info.videoDetails.title, artist: info.videoDetails.author.name });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Stream alınamadı' });
+  }
+});
+
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 
