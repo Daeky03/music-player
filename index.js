@@ -61,6 +61,7 @@ await play.setToken({
 });
     // info çek
     const info = await play.video_info(url);
+    console.log(info);
 const stream = await play.stream_from_info(info);
     
     // stream URL’sini döndür
