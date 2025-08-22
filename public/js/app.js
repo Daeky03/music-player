@@ -2,7 +2,7 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catc
 
 // Örnek veriler (sen public/audio içine yerleştireceksin)
 const SAMPLE_TRACKS = [
-  { id: 's1', title: 'Sample One', artist: 'Artist A', url: '/audio/sample1.mp3', artwork: '/icons/icon-192.png' },
+  { id: 's1', title: 'Sample One', artist: 'Artist A', url: '/audio/Arcane S2 - Ma Meilleure Ennemie (Turkish Cover by @Minachua & @batumation ).mp3', artwork: '/icons/icon-192.png' },
   { id: 's2', title: 'Sample Two', artist: 'Artist B', url: '/audio/sample2.mp3', artwork: '/icons/icon-192.png' },
   { id: 's3', title: 'Sample Three', artist: 'Artist C', url: '/audio/sample3.mp3', artwork: '/icons/icon-192.png' }
 ];
