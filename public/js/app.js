@@ -57,27 +57,64 @@ function swalToast(title, timer=2000){ Swal.fire({ title, toast:true, position:'
 
 // Playlist oluştur (SweetAlert2 + kapak)
 document.getElementById('newPlaylistBtn')?.addEventListener('click', async()=>{
-  const { isConfirmed, value:formValues } = await Swal.fire({
-    title: 'Yeni Playlist',
+ 
+  Swal.fire({
+    title: "Yeni Playlist",
     html: `
-      <input id="pl-name" class="swal2-input" placeholder="Playlist adı">
-      <input id="pl-cover" type="file" accept="image/*" class="swal2-input">
+      <input id="plName" class="swal2-input" placeholder="Playlist adı">
+      <input id="plCover" type="file" accept="image/*" class="swal2-file">
     `,
-    preConfirm: ()=>{
-      const name=document.getElementById('pl-name').value.trim();
-      const file=document.getElementById('pl-cover').files[0]||null;
-      if(!name){ Swal.showValidationMessage('İsim gerekli'); return false; }
-      return { name, file };
-    },
-    showCancelButton:true,
-    confirmButtonText:'Oluştur',
-    background:'#12121a', color:'#fff'
+    showCancelButton: true,
+    confirmButtonText: "Oluştur",
+    background: "#12121a",
+    color: "#fff",
+    preConfirm: () => {
+      const name = document.getElementById("plName").value.trim();
+      const file = document.getElementById("plCover").files[0];
+
+      if (!name) {
+        Swal.showValidationMessage("Playlist adı boş olamaz!");
+        return false;
+      }
+
+      // ✅ Eğer resim yüklenmişse base64 dönüştür
+      return new Promise((resolve) => {
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ name, cover: reader.result });
+          reader.readAsDataURL(file);
+        } else {
+          resolve({ name, cover: null });
+        }
+      });
+    }
+  }).then((res) => {
+    if (res.isConfirmed) {
+      const newPl = {
+        id: crypto.randomUUID(),
+        name: res.value.name,
+        cover: res.value.cover,  // ✅ artık base64 olarak kaydediliyor
+        items: []
+      };
+
+      playlists.push(newPl);
+      save(LS_PLAYLISTS, playlists);
+      renderPlaylists();
+
+      Swal.fire({
+        title: "Playlist oluşturuldu!",
+        html: `
+          <strong>${newPl.name}</strong> başarıyla eklendi.<br>
+          ${newPl.cover ? `<img src="${newPl.cover}" alt="Kapak" style="max-width:100px;margin-top:10px;">` : ""}
+        `,
+        icon: "success",
+        background: "#12121a",
+        color: "#fff"
+      });
+    }
   });
-  if(!isConfirmed) return;
-  let cover=null;
-  if(formValues.file){ cover = URL.createObjectURL(formValues.file); }
-  playlists.push({ id: crypto.randomUUID(), name: formValues.name, cover, items: [] });
-  save(LS_PLAYLISTS, playlists); renderPlaylists(); swalToast('Playlist oluşturuldu');
+ 
+  
 });
 
 // Bildirim izni (SweetAlert2)
@@ -215,24 +252,66 @@ playlistListEl.addEventListener('click',async(e)=>{
 });
 
 // Paylaşım: veritabanı yok -> URL fragmente base64 JSON
+// Paylaşım: veritabanı yok -> URL fragmente base64 JSON
 function sharePlaylist(pl){
-  const payload = { name: pl.name, items: pl.items };
+  // ✅ cover'ı da base64 olarak dahil ediyoruz
+  const payload = { name: pl.name, items: pl.items, cover: pl.cover || null };
   const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
   const url = `${location.origin}${location.pathname}#pl=${b64}`;
-  if(navigator.share){ navigator.share({ title:'Playlist', text:pl.name, url }).catch(()=>{}); }
-  Swal.fire({ title:'Paylaşım linki', html:`<input class="swal2-input" value="${url}" readonly>` , background:'#12121a', color:'#fff' });
+
+  if(navigator.share){
+    navigator.share({ title:'Playlist', text:pl.name, url }).catch(()=>{});
+  }
+
+  Swal.fire({
+    title:'Paylaşım linki',
+    html:`<input class="swal2-input" value="${url}" readonly>`,
+    background:'#12121a',
+    color:'#fff'
+  });
 }
 
+
 // Link ile içe aktarma
+// Link ile içe aktarma (SweetAlert ile bildirim)
 (function importFromHash(){
-  const m = location.hash.match(/#pl=([^&]+)/); if(!m) return; try{
+  const m = location.hash.match(/#pl=([^&]+)/);
+  if(!m) return;
+  try {
     const json = decodeURIComponent(escape(atob(m[1])));
     const payload = JSON.parse(json);
-    const newPl = { id: crypto.randomUUID(), name: payload.name||'Paylaşılan', cover:null, items: Array.isArray(payload.items)?payload.items:[] };
-    playlists.push(newPl); save(LS_PLAYLISTS, playlists); renderPlaylists(); swalToast('Playlist içe aktarıldı');
+
+    const newPl = {
+      id: crypto.randomUUID(),
+      name: payload.name || 'Paylaşılan',
+      cover: payload.cover || null, // ✅ base64 kapak resmi geliyor
+      items: Array.isArray(payload.items) ? payload.items : []
+    };
+
+    playlists.push(newPl);
+    save(LS_PLAYLISTS, playlists);
+    renderPlaylists();
+
+    // ✅ SweetAlert ile bildirim
+    Swal.fire({
+      title: 'Playlist içe aktarıldı!',
+      html: `
+        <strong>${newPl.name}</strong> başarıyla eklendi.<br>
+        ${newPl.cover ? `<img src="${newPl.cover}" alt="Kapak" style="max-width:100px;margin-top:10px;">` : ''}
+      `,
+      icon: 'success',
+      confirmButtonText: 'Tamam',
+      background:'#12121a',
+      color:'#fff'
+    });
+
+    // URL’den parametreyi temizle
     history.replaceState(null,'',location.pathname+location.search);
-  }catch{}
+  } catch(e){
+    Swal.fire("Hata", "Playlist içe aktarılamadı!", "error");
+  }
 })();
+
 
 async function renderDownloads(){ downloadListEl.innerHTML=''; const c=await caches.open('offline-audio-v1'); const keys=await c.keys(); for(const req of keys){ const url=req.url.replace(location.origin,''); const t=tracks.find(x=>x.url===url); const name=t? `${t.title}`:'Bilinmeyen Şarkı'; const li=document.createElement('li'); li.className='flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10'; li.innerHTML=`<div class="truncate">${name}</div><div class="flex gap-2"><button data-url="${url}" class="play px-3 py-1.5 rounded-full bg-accent text-white">Çal</button><button data-url="${url}" class="rm px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Sil</button></div>`; downloadListEl.appendChild(li); } }
 
