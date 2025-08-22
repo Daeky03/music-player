@@ -78,8 +78,9 @@ const bestAudio = audioFormats[0];
     const response = await axios.get(info.format[0].url.replace(`itag=${info.format[0].itag}`, `itag=${bestAudio.itag}`), {
       responseType: 'stream', // stream olarak alıyoruz
       headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Cookie': cookies
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-M405F Build/QP1A.190711.020) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.128 Mobile Safari/537.36 (Ecosia android@69.0.3497.128)',
+        'Cookie': cookies,
+        'Referer': "https://youtube.com"
       }
     });
 
