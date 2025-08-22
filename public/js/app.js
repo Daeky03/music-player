@@ -11,7 +11,7 @@ themeToggle?.addEventListener('click', ()=>{ const cur=document.documentElement.
 
 // Örnek veriler
 const SAMPLE_TRACKS = [
-  { id: 's1', title: 'Nebula Dreams', artist: 'Luna V.', url: '/audio/sample1.mp3', artwork: '/icons/icon-512.png', duration: 0 },
+  { id: 's1', title: 'Nebula Dreams', artist: 'Luna V.', url: '/audio/Arcane S2 - Ma Meilleure Ennemie (Turkish Cover by @Minachua & @batumation ).mp3', artwork: '/icons/icon-512.png', duration: 0 },
   { id: 's2', title: 'Violet Night', artist: 'Noir Keys', url: '/audio/sample2.mp3', artwork: '/icons/icon-512.png', duration: 0 },
   { id: 's3', title: 'Pulse Runner', artist: 'Astra', url: '/audio/sample3.mp3', artwork: '/icons/icon-512.png', duration: 0 },
 ];
