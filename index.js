@@ -71,11 +71,11 @@ audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
 
 // en yüksek bitrate olanı seç
 const bestAudio = audioFormats[0];
-    console.log(bestAudio.url);
+    console.log(bestAudio);
     
     
     // stream URL’sini döndür
-    const response = await axios.get(bestAudio.url, {
+    const response = await axios.get(info.format[0].url.replace(`itag=${info.format[0].itag}`, `itag=${bestAudio.itag}`), {
       responseType: 'stream', // stream olarak alıyoruz
       headers: {
         'User-Agent': 'Mozilla/5.0',
