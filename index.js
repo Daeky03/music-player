@@ -75,7 +75,7 @@ const bestAudio = audioFormats[0];
     
     
     // stream URL’sini döndür
-    const source = await play.stream_from_info(info.stream[0].url);
+    const source = await play.stream_from_info(info.format[0].url);
     const resource = createAudioResource(source.stream, {
      inputType : source.type
 })
