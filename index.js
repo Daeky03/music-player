@@ -32,7 +32,9 @@ VISITOR_INFO1_LIVE=qZTuqYA6BiM;
 `;
 
 await play.setToken({
-  cookies: () => [{ key: "cookie", value: cookies }]
+  youtube: {
+  cookies: cookies
+  }
 });
 
 
