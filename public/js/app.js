@@ -48,6 +48,8 @@ function getSearchText(){ return (search_m?.value||'') || (searchInput?.value||'
 searchInput?.addEventListener('input', ()=>renderLibrary(getSearchText()));
 search_m?.addEventListener('input', ()=>renderLibrary(getSearchText()));
 
+
+
 // SweetAlert2 yardımcıları
 async function swalPrompt(html, confirmText='Kaydet'){
   const { value } = await Swal.fire({ title:'', html, focusConfirm:false, showCancelButton:true, confirmButtonText:confirmText, background:'#12121a', color:'#fff' });
@@ -180,15 +182,62 @@ audio.addEventListener('pause', ()=>{ mini.btnPlay.textContent='▶'; xp.btnPlay
 audio.addEventListener('ended', ()=>{ if(repeat==='one'){ audio.currentTime=0; audio.play(); } else playNext(); });
 
 // Renderers
-function renderLibrary(filter=''){
+async function renderLibrary(filter=''){
   tracksEl.innerHTML='';
-  const list=tracks.filter(t=> (t.title+' '+(t.artist||'')).toLowerCase().includes(filter.toLowerCase()));
+
+  // 1️⃣ Local tracks
+  const list = tracks.filter(t => (t.title + ' ' + (t.artist||'')).toLowerCase().includes(filter.toLowerCase()));
   list.forEach(t=>{
-    const row=document.createElement('div'); row.className='flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
-    row.innerHTML=`<div class="flex items-center gap-3"><img src="${t.artwork||'/icons/icon-192.png'}" class="w-12 h-12 rounded-lg"/><div><div class="font-medium">${t.title}</div><div class="text-xs text-gray-600 dark:text-white/60">${t.artist||''}</div></div></div><div class="flex items-center gap-2"><button data-id="${t.id}" class="play px-3 py-1.5 rounded-full bg-accent text-white">Çal</button><button data-id="${t.id}" class="addpl px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Playlist</button><button data-id="${t.id}" class="cache px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Cache</button></div>`;
+    const row = document.createElement('div'); 
+    row.className = 'flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
+    row.innerHTML = `
+      <div class="flex items-center gap-3">
+        <img src="${t.artwork||'/icons/icon-192.png'}" class="w-12 h-12 rounded-lg"/>
+        <div>
+          <div class="font-medium">${t.title}</div>
+          <div class="text-xs text-gray-600 dark:text-white/60">${t.artist||''}</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button data-id="${t.id}" class="play px-3 py-1.5 rounded-full bg-accent text-white">Çal</button>
+        <button data-id="${t.id}" class="addpl px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Playlist</button>
+        <button data-id="${t.id}" class="cache px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Cache</button>
+      </div>
+    `;
     tracksEl.appendChild(row);
   });
+
+  // 2️⃣ YouTube araması
+  if(filter.trim()){
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(filter)}`);
+      const data = await res.json();
+      const ytResults = data.results || [];
+
+      ytResults.forEach(t=>{
+        const row = document.createElement('div'); 
+        row.className = 'flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
+        row.innerHTML = `
+          <div class="flex items-center gap-3">
+            <img src="${t.thumbnail}" class="w-12 h-12 rounded-lg"/>
+            <div>
+              <div class="font-medium">${t.title}</div>
+              <div class="text-xs text-gray-600 dark:text-white/60">${t.author.name}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button data-url="${t.url}" class="play px-3 py-1.5 rounded-full bg-accent text-white">Çal</button>
+            <button data-url="${t.url}" class="addpl px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Playlist</button>
+          </div>
+        `;
+        tracksEl.appendChild(row);
+      });
+    } catch(err){
+      console.error('YT Search error:', err);
+    }
+  }
 }
+
 
 // Playlist'e ekleme (SweetAlert2 ile doğrudan seçim)
 async function addToPlaylistDialog(trackId){
