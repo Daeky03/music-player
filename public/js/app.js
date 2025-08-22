@@ -254,11 +254,11 @@ playlistListEl.addEventListener('click',async(e)=>{
 // Paylaşım: veritabanı yok -> URL fragmente base64 JSON
 // Paylaşım: veritabanı yok -> URL fragmente base64 JSON
 function sharePlaylist(pl){
-  // ✅ cover'ı da base64 olarak dahil ediyoruz
-  const payload = { name: pl.name, items: pl.items, cover: pl.cover || null };
-  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-  const url = `${location.origin}${location.pathname}#pl=${b64}`;
-
+  const payload = { name: pl.name, items: pl.items };
+  // JSON'u LZ-String ile sıkıştır
+  const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(payload));
+  const url = `${location.origin}${location.pathname}#pl=${compressed}`;
+  
   if(navigator.share){
     navigator.share({ title:'Playlist', text:pl.name, url }).catch(()=>{});
   }
@@ -266,8 +266,7 @@ function sharePlaylist(pl){
   Swal.fire({
     title:'Paylaşım linki',
     html:`<input class="swal2-input" value="${url}" readonly>`,
-    background:'#12121a',
-    color:'#fff'
+    background:'#12121a', color:'#fff'
   });
 }
 
@@ -277,40 +276,28 @@ function sharePlaylist(pl){
 (function importFromHash(){
   const m = location.hash.match(/#pl=([^&]+)/);
   if(!m) return;
-  try {
-    const json = decodeURIComponent(escape(atob(m[1])));
+  try{
+    const json = LZString.decompressFromEncodedURIComponent(m[1]);
+    if(!json) throw new Error('Bozuk veri');
     const payload = JSON.parse(json);
-
     const newPl = {
       id: crypto.randomUUID(),
       name: payload.name || 'Paylaşılan',
-      cover: payload.cover || null, // ✅ base64 kapak resmi geliyor
+      cover: null,
       items: Array.isArray(payload.items) ? payload.items : []
     };
-
     playlists.push(newPl);
     save(LS_PLAYLISTS, playlists);
     renderPlaylists();
-
-    // ✅ SweetAlert ile bildirim
-    Swal.fire({
-      title: 'Playlist içe aktarıldı!',
-      html: `
-        <strong>${newPl.name}</strong> başarıyla eklendi.<br>
-        ${newPl.cover ? `<img src="${newPl.cover}" alt="Kapak" style="max-width:100px;margin-top:10px;">` : ''}
-      `,
-      icon: 'success',
-      confirmButtonText: 'Tamam',
-      background:'#12121a',
-      color:'#fff'
-    });
-
-    // URL’den parametreyi temizle
-    history.replaceState(null,'',location.pathname+location.search);
-  } catch(e){
-    Swal.fire("Hata", "Playlist içe aktarılamadı!", "error");
+    swalToast('Playlist içe aktarıldı');
+    // URL’den hash temizle
+    history.replaceState(null, '', location.pathname + location.search);
+  }catch(e){
+    console.error(e);
+    swalToast('Playlist yüklenemedi');
   }
 })();
+
 
 
 async function renderDownloads(){ downloadListEl.innerHTML=''; const c=await caches.open('offline-audio-v1'); const keys=await c.keys(); for(const req of keys){ const url=req.url.replace(location.origin,''); const t=tracks.find(x=>x.url===url); const name=t? `${t.title}`:'Bilinmeyen Şarkı'; const li=document.createElement('li'); li.className='flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10'; li.innerHTML=`<div class="truncate">${name}</div><div class="flex gap-2"><button data-url="${url}" class="play px-3 py-1.5 rounded-full bg-accent text-white">Çal</button><button data-url="${url}" class="rm px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Sil</button></div>`; downloadListEl.appendChild(li); } }
