@@ -75,18 +75,14 @@ const bestAudio = audioFormats[0];
     
     
     // stream URL’sini döndür
-    const response = await axios.get(info.format[0].url.replace(`itag=${info.format[0].itag}`, `itag=${bestAudio.itag}`), {
-      responseType: 'stream', // stream olarak alıyoruz
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-M405F Build/QP1A.190711.020) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.128 Mobile Safari/537.36 (Ecosia android@69.0.3497.128)',
-        'Cookie': cookies,
-        'Referer': "https://youtube.com"
-      }
-    });
+    const source = await play.stream_from_info(info);
+    const resource = createAudioResource(source.stream, {
+     inputType : source.type
+})
 
     // Yanıtı direkt olarak client'a yolluyoruz
     res.setHeader('Content-Type', 'audio/mp3'); // veya mimeType neyse onu kullanabilirsin
-    response.data.pipe(res);
+    response.data.pipe(resource);
   } catch (err) {
     console.error(err);
     res.status(500).json({error: 'YouTube stream alınamadı'});
