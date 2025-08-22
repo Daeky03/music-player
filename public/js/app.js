@@ -145,15 +145,88 @@ function renderLibrary(filter=''){
 tracksEl.addEventListener('click', async(e)=>{
   const btn=e.target.closest('button'); if(!btn) return; const id=btn.dataset.id; const t=tracks.find(x=>x.id===id); if(!t) return;
   if(btn.classList.contains('play')){ setQueue([id],0); }
-  if(btn.classList.contains('addpl')){ const plId=prompt('Playlist ID (Playlists sekmesinden bak)'); const pl=playlists.find(p=>p.id===plId); if(!pl) return alert('Bulunamadı'); if(!pl.items.includes(id)) pl.items.push(id); save(LS_PLAYLISTS, playlists); renderPlaylists(); }
+  if(btn.classList.contains('addpl')){
+  if(playlists.length===0){
+    await Swal.fire({icon:'info', title:'Playlist yok', text:'Önce bir playlist oluşturun.'});
+    return;
+  }
+  const options = playlists.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  const { value: plId } = await Swal.fire({
+    title: 'Playlist seç',
+    html: `<select id="plSel" class="swal2-select">${options}</select>`,
+    focusConfirm: false,
+    preConfirm: ()=> document.getElementById('plSel').value,
+    showCancelButton: true,
+    confirmButtonText: 'Ekle'
+  });
+  if(!plId) return;
+  const pl = playlists.find(p=>p.id===plId); if(!pl) return;
+  if(!pl.items.includes(id)) pl.items.push(id);
+  save(LS_PLAYLISTS, playlists); renderPlaylists();
+  Swal.fire({icon:'success', title:'Eklendi', timer:1200, showConfirmButton:false});
+  }
+  
   if(btn.classList.contains('cache')){ const res=await fetch(t.url); if(!res.ok) return alert('İndirme hatası'); const clone=res.clone(); const c=await caches.open('offline-audio-v1'); await c.put(t.url, clone); alert('Cache tamam'); renderDownloads(); }
 });
 
-function renderPlaylists(){ playlistListEl.innerHTML=''; playlists.forEach(pl=>{
-  const li=document.createElement('li'); li.className='flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
-  li.innerHTML=`<div><div class="font-medium">${pl.name}</div><div class="text-xs text-gray-600 dark:text-white/60">${pl.items.length} parça — id: ${pl.id}</div></div><div class="flex gap-2"><button data-id="${pl.id}" class="open px-3 py-1.5 rounded-full bg-accent text-white">Çal</button><button data-id="${pl.id}" class="rename px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Ad</button><button data-id="${pl.id}" class="del px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Sil</button></div>`;
-  playlistListEl.appendChild(li);
-}); }
+function renderPlaylists(){
+  playlistListEl.innerHTML='';
+  playlists.forEach(pl=>{
+    const li=document.createElement('li');
+    li.className='flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
+    li.innerHTML=`
+      <div class="flex items-center gap-3 min-w-0">
+        <img src="${pl.cover||'/icons/icon-192.png'}" class="w-12 h-12 rounded-lg object-cover">
+        <div class="min-w-0">
+          <div class="font-medium truncate">${pl.name}</div>
+          <div class="text-xs text-gray-600 dark:text-white/60 truncate">${pl.items.length} parça — id: ${pl.id}</div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button data-id="${pl.id}" class="open px-3 py-1.5 rounded-full bg-accent text-white">Çal</button>
+        <button data-id="${pl.id}" class="share px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Paylaş</button>
+        <button data-id="${pl.id}" class="rename px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Ad</button>
+        <button data-id="${pl.id}" class="del px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Sil</button>
+      </div>`;
+    playlistListEl.appendChild(li);
+  });
+}
+
+function sharePlaylist(pl){
+  const data = { name: pl.name, cover: pl.cover, items: pl.items };
+  const json = JSON.stringify(data);
+  const b64 = btoa(unescape(encodeURIComponent(json)));
+  const url = `${location.origin}${location.pathname}#pl=${b64}`;
+  navigator.clipboard?.writeText(url);
+  Swal.fire({icon:'success', title:'Bağlantı kopyalandı', text:'Playlist linki panoya kopyalandı.', timer:1600, showConfirmButton:false});
+}
+
+playlistListEl.addEventListener('click',(e)=>{
+  const b=e.target.closest('button'); if(!b) return;
+  const id=b.dataset.id; const pl=playlists.find(x=>x.id===id); if(!pl) return;
+  if(b.classList.contains('open')){
+    const ids=pl.items.filter(i=>tracks.some(t=>t.id===i));
+    if(ids.length===0){ Swal.fire({icon:'info', title:'Boş playlist'}); return;}
+    setQueue(ids,0);
+  }
+  if(b.classList.contains('rename')){
+    (async()=>{
+      const { value: name } = await Swal.fire({
+        title:'Yeni ad', input:'text', inputValue: pl.name,
+        showCancelButton:true, confirmButtonText:'Kaydet'
+      });
+      if(!name) return; pl.name=name; save(LS_PLAYLISTS, playlists); renderPlaylists();
+    })();
+  }
+  if(b.classList.contains('del')){
+    (async()=>{
+      const ok = await Swal.fire({ title:'Silinsin mi?', icon:'warning', showCancelButton:true, confirmButtonText:'Sil'}).then(r=>r.isConfirmed);
+      if(!ok) return; playlists=playlists.filter(x=>x.id!==id); save(LS_PLAYLISTS, playlists); renderPlaylists();
+    })();
+  }
+  if(b.classList.contains('share')){ sharePlaylist(pl); }
+});
+
 
 playlistListEl.addEventListener('click',(e)=>{
   const b=e.target.closest('button'); if(!b) return; const id=b.dataset.id; const pl=playlists.find(x=>x.id===id); if(!pl) return;
