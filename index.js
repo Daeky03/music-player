@@ -60,10 +60,12 @@ await play.setToken({
   }
 });
     // info çek
-    const stream = await play.stream(url) 
+    const info = await play.video_info(url);
+const stream = await play.stream_from_info(info);
+    
     // stream URL’sini döndür
     res.json({
-      audioUrl: stream
+      audioUrl: stream.url
          });
   } catch (err) {
     console.error(err);
