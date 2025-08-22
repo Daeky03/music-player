@@ -258,7 +258,7 @@ function sharePlaylist(pl){
   const payload = {
     name: pl.name,
     items: pl.items,
-    cover: pl.cover ? pl.cover : null  // base64 veya URL
+    cover: null  // base64 veya URL
   };
 
   const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(payload));
