@@ -41,7 +41,28 @@ const searchInput=document.getElementById('search');
 searchInput.addEventListener('input', e=>renderLibrary(e.target.value));
 
 // Playlist oluştur
-document.getElementById('newPlaylistBtn').addEventListener('click',()=>{ const name=prompt('Playlist adı'); if(!name) return; playlists.push({ id:crypto.randomUUID(), name, items:[] }); save(LS_PLAYLISTS, playlists); renderPlaylists(); });
+document.getElementById('newPlaylistBtn').addEventListener('click', async ()=>{
+  const { value: res } = await Swal.fire({
+    title: 'Yeni Playlist',
+    html: `
+      <input id="plName" class="swal2-input" placeholder="Ad">
+      <input id="plCover" class="swal2-input" type="file" accept="image/*">`,
+    showCancelButton: true,
+    confirmButtonText: 'Oluştur',
+    preConfirm: ()=>{
+      const name = document.getElementById('plName').value.trim();
+      const file = document.getElementById('plCover').files[0];
+      if(!name){ Swal.showValidationMessage('İsim gerekli'); return false; }
+      return { name, file };
+    }
+  });
+  if(!res) return;
+  let coverUrl = null;
+  if(res.file){ coverUrl = URL.createObjectURL(res.file); }
+  playlists.push({ id: crypto.randomUUID(), name: res.name, cover: coverUrl, items: [] });
+  save(LS_PLAYLISTS, playlists); renderPlaylists();
+  Swal.fire({icon:'success', title:'Oluşturuldu', timer:1200, showConfirmButton:false});
+});
 
 // Bildirim izni
 const notifyPermBtn=document.getElementById('notifyPermBtn');
