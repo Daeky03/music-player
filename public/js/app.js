@@ -255,12 +255,56 @@ async function addToPlaylistDialog(trackId){
   save(LS_PLAYLISTS, playlists); renderPlaylists(); swalToast('Eklendi');
 }
 
-tracksEl.addEventListener('click', async(e)=>{
-  const btn=e.target.closest('button'); if(!btn) return; const id=btn.dataset.id; const t=tracks.find(x=>x.id===id); if(!t) return;
-  if(btn.classList.contains('play')){ setQueue([id],0); }
-  if(btn.classList.contains('addpl')){ addToPlaylistDialog(id); }
-  if(btn.classList.contains('cache')){ try{ const res=await fetch(t.url); if(!res.ok) throw new Error(); const clone=res.clone(); const c=await caches.open('offline-audio-v1'); await c.put(t.url, clone); swalToast('Cache tamam'); renderDownloads(); }catch{ swalToast('İndirme hatası'); } }
+tracksEl.addEventListener('click', async (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+
+  // Local track
+  const id = btn.dataset.id;
+  if (id) {
+    const t = tracks.find(x => x.id === id);
+    if (!t) return;
+    if (btn.classList.contains('play')) setQueue([id], 0);
+    if (btn.classList.contains('addpl')) addToPlaylistDialog(id);
+    if (btn.classList.contains('cache')) {
+      try {
+        const res = await fetch(t.url);
+        if (!res.ok) throw new Error();
+        const clone = res.clone();
+        const c = await caches.open('offline-audio-v1');
+        await c.put(t.url, clone);
+        swalToast('Cache tamam');
+        renderDownloads();
+      } catch {
+        swalToast('İndirme hatası');
+      }
+    }
+  }
+
+  // YouTube track
+  const url = btn.dataset.url;
+  if (url) {
+    if (btn.classList.contains('play')) {
+      // API üzerinden stream linki al
+      try {
+        const res = await fetch(`/api/yt-stream?url=${encodeURIComponent(url)}`);
+        const data = await res.json();
+        if (data.audioUrl) {
+          audio.src = data.audioUrl;
+          audio.play();
+        }
+      } catch (err) {
+        console.error('YT Stream error:', err);
+        swalToast('Çalma hatası');
+      }
+    }
+    if (btn.classList.contains('addpl')) {
+      // YouTube linkini playlist’e ekle
+      addToPlaylistDialog(url);
+    }
+  }
 });
+
 
 function renderPlaylists(){ playlistListEl.innerHTML=''; playlists.forEach(pl=>{
   const li=document.createElement('li'); li.className='group relative rounded-xl overflow-hidden bg-black/5 dark:bg-white/10';
