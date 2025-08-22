@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="tr" class="h-full">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SLP</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { theme: { extend: { colors: { brand: '#1DB954', ink: '#0b0b0b', panel: '#111111' } } } }
+</script>
+<link rel="manifest" href="/manifest.webmanifest">
+</head>
+<body class="min-h-screen bg-ink text-white">
+<div class="max-w-6xl mx-auto">
+<header class="flex items-center justify-between p-4">
+<h1 class="text-2xl font-semibold">SLP</h1>
+</header>
+<main class="p-4"> <%- body %> </main>
+<footer class="p-4 text-xs text-white/60">Offline: service worker + cache | Veriler: localStorage</footer>
+</div>
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>
