@@ -226,8 +226,8 @@ async function renderLibrary(filter=''){
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button data_url="${t.url}" class="play px-3 py-1.5 rounded-full bg-accent text-white">Çal</button>
-            <button data_url="${t.url}" class="addpl px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Playlist</button>
+            <button data-link="${t.url}" class="play px-3 py-1.5 rounded-full bg-accent text-white">Çal</button>
+            <button data-link="${t.url}" class="addpl px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Playlist</button>
           </div>
         `;
         tracksEl.appendChild(row);
@@ -282,7 +282,7 @@ tracksEl.addEventListener('click', async (e) => {
   }
 
   // YouTube track
-  const url = btn.dataset.data_url;
+  const url = btn.dataset.link;
   if (url) {
     if (btn.classList.contains('play')) {
       // API üzerinden stream linki al
