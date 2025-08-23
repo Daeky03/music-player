@@ -418,11 +418,22 @@ const agentOptions = {
        
     const agent = await ytdl.createAgent(jsoncookies, agentOptions);
 
-      ytdl.getInfo(`https://www.youtube.com/watch?v=${url}`, { agent }).then(info => {
-  console.log(info.formats);
-          res.json(info.formats);
-});
+      
+const info = await ytdl.getInfo(videoUrl, { agent });
+console.log(info);
+    // En yüksek sesli formatı seç
+    const audioFormat = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', agent });
 
+    if (!audioFormat) return res.status(404).send('Ses formatı bulunamadı');
+
+    // Response header ayarla
+    res.setHeader('Content-Disposition', `attachment; filename="${info.videoDetails.title}.mp3"`);
+    res.setHeader('Content-Type', 'audio/mpeg');
+
+    // Ses streamini pipe et
+    ytdl(videoUrl, { format: audioFormat, agent }).pipe(res);
+
+      
 
     
     
