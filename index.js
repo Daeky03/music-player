@@ -407,12 +407,9 @@ app.get('/api/yt-stream', async (req, res) => {
     
   
     
-    const agentOptions = {
-  pipelining: 5,
-  maxRedirections: 0,
-};
+    
        
-    const agent = await ytdl.createAgent(jsoncookies, agentOptions);
+    const agent = await ytdl.createAgent(jsoncookies);
 
       
 
