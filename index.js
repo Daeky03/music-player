@@ -409,7 +409,7 @@ app.get('/stream/:videoId', async (req, res) => {
     const videoId = req.params.videoId;
 
     // Audio stream alıyoruz
-    const videoInfo = await innertube.getInfo(videoId, { client: 'YTMusic' });
+    const videoInfo = await yt.getInfo(videoId, { client: 'YTMusic' });
 
       console.log(videoInfo);
 const manifest = await videoInfo.toMpeg(url => {
@@ -422,11 +422,9 @@ const manifest = await videoInfo.toMpeg(url => {
     res.setHeader('Content-Type', 'audio/mpeg');
 
     // Streami gönderiyoruz
-    for await (const chunk of Utils.streamToIterable(stream)) {
-      res.write(chunk);
-    }
+    res.json({ manifest })
 
-    res.end();
+    
   } catch (err) {
     console.error(err);
     if (!res.headersSent) {
