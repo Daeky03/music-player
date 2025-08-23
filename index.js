@@ -417,9 +417,7 @@ const agentOptions = {
   localAddress: "127.0.0.1",
 };
        
-    ytdl.getInfo(`https://www.youtube.com/watch?v=${url}`).then(info => {
-  console.log(info.formats);
-});
+    
 
    res.setHeader('Content-Disposition', 'attachment; filename="audio.opus"');
     res.setHeader('Content-Type', 'audio/opus');
