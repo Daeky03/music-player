@@ -409,13 +409,15 @@ app.get('/stream/:videoId', async (req, res) => {
     const videoId = req.params.videoId;
 
     // Audio stream alıyoruz
-    const stream = await yt.download(videoId, {
-      type: 'audio',       // audio only
-      quality: 'best',     // en yüksek kalite
-      format: 'mp4',       // media container
-      client: 'YTMUSIC'    // YT Music client
-    });
+    const videoInfo = await innertube.getInfo(videoId, { client: 'YTMusic' });
 
+      console.log(videoInfo);
+const manifest = await videoInfo.toMpeg(url => {
+  // modify the url
+  // and return it
+    console.log(url)
+  return url;
+});
     // Header ayarı
     res.setHeader('Content-Type', 'audio/mpeg');
 
