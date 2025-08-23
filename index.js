@@ -419,21 +419,11 @@ const agentOptions = {
        
     const agent = await ytdl.createAgent(jsoncookies, agentOptions);
 
-      ytdl.getInfo(`https://www.youtube.com/watch?v=${url}`).then(info => {
+      ytdl.getInfo(`https://www.youtube.com/watch?v=${url}`, { agent }).then(info => {
   console.log(info.formats);
+          res.json(info.formats);
 });
 
-   res.setHeader('Content-Disposition', 'attachment; filename="audio.opus"');
-    res.setHeader('Content-Type', 'audio/opus');
-    
-ytdl(`https://www.youtube.com/watch?v=${url}`, {
-  requestOptions: {
-    headers: {
-      cookie: cookies,
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0'
-    }
-  }
-}).pipe(res);
 
     
     
