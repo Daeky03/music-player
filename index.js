@@ -74,8 +74,9 @@ const html = await axios.get(`https://www.youtube.com/watch?v=${url}`, {
     const playerResponse = JSON.parse(match[1]);
 console.log(playerResponse);
     // 3. Ses formatlarını bul
-    const formats = playerResponse.streamingData.adaptiveFormats
-      .filter(f => f.mimeType.includes("audio"));
+    let formats = playerResponse.streamingData.adaptiveFormats
+      console.log(formats);
+      formats.filter(f => f.mimeType.includes("audio"));
 
     // 4. Bitrate’e göre sırala (yüksek, orta, düşük)
     formats.sort((a, b) => b.bitrate - a.bitrate);
