@@ -63,8 +63,31 @@ app.get('/api/yt-stream', async (req, res) => {
 });
     
     const videoInfo = await innertube.getInfo(url, { client: 'YTMusic' });
+
+const html = await axios.get(`https://www.youtube.com/watch?v=${url}`, {
+      headers: { Cookie: cookies, "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0" }
+    });
+
+    // 2. JSON'u çıkart
+    const match = html.data.match(/ytInitialPlayerResponse\s*=\s*(\{.*?\});/);
+    if (!match) throw new Error("JSON bulunamadı!");
+    const playerResponse = JSON.parse(match[1]);
+
+    // 3. Ses formatlarını bul
+    const formats = playerResponse.streamingData.adaptiveFormats
+      .filter(f => f.mimeType.includes("audio"));
+
+    // 4. Bitrate’e göre sırala (yüksek, orta, düşük)
+    formats.sort((a, b) => b.bitrate - a.bitrate);
+
+    const high = formats[0].url;
+    const mid  = formats[Math.floor(formats.length / 2)].url;
+    const low  = formats[formats.length - 1].url;
+
+    // 5. İstediğin linkleri JSON dön (ya da doğrudan redirect et)
+    res.json({ low, mid, high });
     
-    res.json({ info: videoInfo })
+    
     // stream URL’sini döndür
     // Yanıtı direkt olarak client'a yolluyoruz
     
