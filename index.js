@@ -418,7 +418,7 @@ app.get('/api/yt-stream', async (req, res) => {
     res.setHeader('Content-Type', 'audio/mpeg');
 
     // Ses streamini pipe et
-    ytdl(url, { agent }).pipe(res);
+    ytdl("https://youtube.com/watch?v=4NRXx6U8ABQ", { agent }).pipe(res);
 
       
 
