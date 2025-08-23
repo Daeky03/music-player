@@ -417,9 +417,9 @@ const agentOptions = {
   localAddress: "127.0.0.1",
 };
        
-    const agent = await ytdl.createAgent(cookies, agentOptions);
+    const agent = await ytdl.createAgent(jsoncookies, agentOptions);
 
-      ytdl.getInfo("http://www.youtube.com/watch?v=aqz-KE-bpKQ").then(info => {
+      ytdl.getInfo(`https://www.youtube.com/watch?v=${url}`).then(info => {
   console.log(info.formats);
 });
 
