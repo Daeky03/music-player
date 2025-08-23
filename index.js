@@ -415,19 +415,13 @@ app.get('/api/yt-stream', async (req, res) => {
     const agent = await ytdl.createAgent(jsoncookies, agentOptions);
 
       
-const info = await ytdl.getInfo(url, { agent });
-console.log(info);
-    // En yüksek sesli formatı seç
-    const audioFormat = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', agent });
-
-    if (!audioFormat) return res.status(404).send('Ses formatı bulunamadı');
 
     // Response header ayarla
     res.setHeader('Content-Disposition', `attachment; filename="${info.videoDetails.title}.mp3"`);
     res.setHeader('Content-Type', 'audio/mpeg');
 
     // Ses streamini pipe et
-    ytdl(url, { format: audioFormat, agent }).pipe(res);
+    ytdl(url, { agent }).pipe(res);
 
       
 
