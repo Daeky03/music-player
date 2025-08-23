@@ -405,13 +405,9 @@ app.get('/api/yt-stream', async (req, res) => {
 
 
     
-  const innertube = await Innertube.create({
-  cookie: cookies
-});
+  
     
-    const videoInfo = await innertube.getInfo(url, { client: 'YTMusic' });
-
-const agentOptions = {
+    const agentOptions = {
   pipelining: 5,
   maxRedirections: 0,
 };
