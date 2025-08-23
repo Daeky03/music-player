@@ -417,7 +417,7 @@ app.get('/api/yt-stream', async (req, res) => {
       
 
     // Response header ayarla
-    res.setHeader('Content-Disposition', `attachment; filename="${info.videoDetails.title}.mp3"`);
+    res.setHeader('Content-Disposition', `attachment; filename="audio.mp3"`);
     res.setHeader('Content-Type', 'audio/mpeg');
 
     // Ses streamini pipe et
