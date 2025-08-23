@@ -8,7 +8,7 @@ import yts from 'yt-search';
 import * as play from 'play-dl';
 import cors from 'cors';
 import axios from "axios";
-import { Innertube } from 'youtubei.js';
+import { Innertube, UniversalCache, Utils } from 'youtubei.js';
 import ytdl from '@distube/ytdl-core';
 
 const jsoncookies = [
@@ -402,91 +402,39 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-app.get('/api/yt-stream', async (req, res) => {
+
+app.get('/stream/:videoId', async (req, res) => {
   try {
+    const yt = await Innertube.create({ cache: new UniversalCache(false), generate_session_locally: true, cookie: cookies });
+    const videoId = req.params.videoId;
 
-function normalizeYouTubeInput(input) {
-  if (!input) return null;
-  const trimmed = String(input).trim();
-  // Sadece ID geldiyse URL yap
-  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
-    return `https://www.youtube.com/watch?v=${trimmed}`;
-  }
-  // Tam URL geldiyse direkt dön
-  return trimmed;
-}
-
-
-    // 2) URL’yi nereden okuyorsan **tek yerde** topla
-    const raw = req.query.url || req.body?.url || req.headers["x-youtube-url"];
-    const watchUrl = normalizeYouTubeInput(raw);
-
-    if (!watchUrl) return res.status(400).send("url parametresi gerekli");
-
-    // 3) Geçerli mi?
-    const kind = await play.validate(watchUrl);
-    if (kind !== "yt_video") {
-      return res.status(400).send("Geçersiz YouTube linki/ID");
-    }
-
-    // 4) Video info al
-    const info = await play.video_basic_info(watchUrl);
-    const fmts = info?.streaming_data?.adaptive_formats ?? [];
-    if (!fmts.length) throw new Error("Format bulunamadı");
-
-    // 5) En iyi ses: 251 (opus ~160kbps) -> 250/249 (opus) -> 140 (m4a ~128kbps) -> diğer ses
-    const byItag = (n) => fmts.find(f => Number(f.itag) === Number(n));
-    let chosen =
-      byItag(251) || byItag(250) || byItag(249) || byItag(140) ||
-      fmts.find(f => f.mime_type?.includes("audio"));
-
-    if (!chosen) throw new Error("Ses formatı bulunamadı");
-
-    // 6A) URL hazırsa (cipher yoksa) googlevideo'ya doğrudan stream (Range passthrough)
-    if (chosen.url) {
-      const range = req.headers.range;
-      const r = await axios.get(chosen.url, {
-        responseType: "stream",
-        headers: range ? { Range: range } : {},
-        // 206 (partial) dönerse de kabul et
-        validateStatus: (s) => s < 400 || s === 206
-      });
-
-      // İçerik başlıklarını forward et
-      const ct =
-        r.headers["content-type"] ||
-        (chosen.mime_type?.split(";")[0] || "audio/webm");
-      res.setHeader("Content-Type", ct);
-      ["content-length", "content-range", "accept-ranges"]
-        .forEach(h => r.headers[h] && res.setHeader(h, r.headers[h]));
-      res.status(r.status);
-      return r.data.pipe(res);
-    }
-
-    // 6B) URL yoksa (signatureCipher), play-dl bizim için çözer
-    const { stream, type, content_length } = await play.stream_from_info(info, {
-      // play-dl en iyi sesi alır; gerekirse 2'yi kaldırabilirsin
-      quality: 2
+    // Audio stream alıyoruz
+    const stream = await yt.download(videoId, {
+      type: 'audio',       // audio only
+      quality: 'best',     // en yüksek kalite
+      format: 'mp4',       // media container
+      client: 'YTMUSIC'    // YT Music client
     });
 
-    res.setHeader("Content-Type", type.includes("audio") ? "audio/webm" : "application/octet-stream");
-    if (content_length) res.setHeader("Content-Length", content_length);
-    res.setHeader("Accept-Ranges", "bytes");
-    return stream.pipe(res);
+    // Header ayarı
+    res.setHeader('Content-Type', 'audio/mpeg');
 
+    // Streami gönderiyoruz
+    for await (const chunk of Utils.streamToIterable(stream)) {
+      res.write(chunk);
+    }
 
-
-    
-      
-
-    
-    
-        
+    res.end();
   } catch (err) {
     console.error(err);
-    res.status(500).json({error: 'YouTube stream alınamadı'});
+    if (!res.headersSent) {
+      res.status(500).send('Internal server error');
+    }
   }
 });
+
+
+
 
 
 app.get('/health', (req, res) => res.json({ ok: true }));
