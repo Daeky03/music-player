@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import favicon from 'serve-favicon';
 import yts from 'yt-search';
-import play from 'play-dl';
+import * as play from 'play-dl';
 import cors from 'cors';
 import axios from "axios";
 import { Innertube } from 'youtubei.js';
@@ -376,6 +376,12 @@ app.get('/', (req, res) => {
 res.render('layout', { appName: 'Music PWA', title: "SLP", content: "index" });
 });
 
+const cookies = "VISITOR_PRIVACY_METADATA=CgJUUhIEGgAgUg%3D%3D;__Secure-3PSID=g.a0000gh--fY2NEEt839s7lEBOQmlD7c3bCunPDFx7cSNnuk_F6LDdA3BuM-Iicnv4Zl9zfgVBgACgYKAeISARUSFQHGX2Mii7oB97l-kLSuXuttsorLgxoVAUF8yKrtqKJtHrr0C9ki94R8xbNH0076;GPS=1;SIDCC=AKEyXzVYElh4-YxZpUn9xuxxzCkeABQAdGcrQu4hT8yFdFT2sn7CX0bb44z3oHiOMrzfXnC9iw;YSC=_jZI9sNFLvM;SID=g.a0000gh--fY2NEEt839s7lEBOQmlD7c3bCunPDFx7cSNnuk_F6LDhE5ty7UionRzN0sSsLYTSAACgYKASMSARUSFQHGX2Mi-RfnLgCR0zVgLUSjUjUS7RoVAUF8yKrLPBIQVyP9phSmln7r4oB00076;__Secure-1PSIDTS=sidts-CjUB5H03P7n_V0Yk3SVb_V9lED6bbld0pBJagHanH_ncCIeVGwLiXZcppA3E83tBulgs8-E9GBAA;SAPISID=K3JzDKARiNoERFCb/AAI1sh8xPfXRwOmFc;__Secure-1PSIDCC=AKEyXzWbk71XHUEt2yqW-W6Wlw4Xs18XjPc72aa6d3vvCvFMDZikVvaLNnXGEs7dIG46YODJ;SSID=AkYPPMRnLdvH6JHbY;ST-1jr1dbr=csn=TehAXaotwvjZDA19&itct=CLkBEPxaIhMIw9KRj6ifjwMVgDLxBR3rvRPLMgpnLWhpZ2gtcmVjWg9GRXdoYXRfdG9fd2F0Y2iaAQYQjh4YngHKAQQr4YsZ;__Secure-1PAPISID=K3JzDKARiNoERFCb/AAI1sh8xPfXRwOmFc;__Secure-1PSID=g.a0000gh--fY2NEEt839s7lEBOQmlD7c3bCunPDFx7cSNnuk_F6LDjjEIK6nl6l9jWIUif7b74QACgYKAXYSARUSFQHGX2MiSlOLRzTblvjLid_eQ_AhVBoVAUF8yKqGkNjh0ZncyASbzy5G_DPB0076;__Secure-3PAPISID=K3JzDKARiNoERFCb/AAI1sh8xPfXRwOmFc;__Secure-3PSIDCC=AKEyXzVlxRILOLSjkUgKF_MkJAEhJApuz6LvrT-eWo9Z4ngQV54GDPqA3aLo1_vUa8-HbWCfUQ;__Secure-3PSIDTS=sidts-CjUB5H03P7n_V0Yk3SVb_V9lED6bbld0pBJagHanH_ncCIeVGwLiXZcppA3E83tBulgs8-E9GBAA;APISID=uOZ24HyZpmKO1x6J/ALCBHyUZHW8RA7fHe;HSID=AhhwDZ8B8ONwaSDWW;LOGIN_INFO=AFmmF2swRAIgJwHIaTLdATeeira2DSeM0_T_W3y6O1im8vxQIuvuBtECIH0kxIQ5otHk0sdhXMHrEsLG0rzDxCKPzP6-5AqIhu-3:QUQ3MjNmemlSTWtMQzRpYVJUOXF4TnpNWHM5Mzk5aUwxYUd4SnJiR014d3JIY3JfQ05CRTNoeDh6R3QtcmNEMkRSWlRZTjByV0l4UmxUX3FnVFBGSG5ncHd0TDVQUzByQzVxYTBiVGpiQ3hvcktOa0I5c0x3Tm4yNWc4Yk5LRTlzUS1ldmpXb3JzcDRUNExKZl9nQXZETXVUSWtMSDRURUJzS0w4VnFJOGRyLXliRXBOR29idDl6Um5tdTBIM18tR253cERQV0g5cjN0cHhCRTh6a3ZmNHF0aFlHZDRBZnRKdw==;PREF=f6=40000000&tz=Europe.Istanbul&f5=30000&f7=100;ST-1fy5w0p=csn=Gkv_ULDr7KqQyQ27&itct=CH0Q_FoiEwiwoKD_p5-PAxV_eXoFHYwgDtwyCmctaGlnaC1yZWNaD0ZFd2hhdF90b193YXRjaJoBBhCOHhieAcoBBCvhixk%3D;ST-stt7tm=csn=Gkv_ULDr7KqQyQ27&itct=CHQQh_YEGAEiEwiwoKD_p5-PAxV_eXoFHYwgDtxaD0ZFd2hhdF90b193YXRjaJoBBQgkEI4eygEEK-GLGQ%3D%3D;VISITOR_INFO1_LIVE=qZTuqYA6BiM";
+
+
+await play.setToken({ youtube: { cookie: cookies } });
+
+
 app.get('/api/search', async (req, res) => {
   const q = req.query.q;
   if(!q) return res.status(400).json({ error: 'Query missing' });
@@ -398,33 +404,78 @@ app.get('/api/search', async (req, res) => {
 
 app.get('/api/yt-stream', async (req, res) => {
   try {
-    const url = req.query.url;
-    if (!url) return res.status(400).json({error: 'url gerekli'});
 
-    const cookies = "VISITOR_PRIVACY_METADATA=CgJUUhIEGgAgUg%3D%3D;__Secure-3PSID=g.a0000gh--fY2NEEt839s7lEBOQmlD7c3bCunPDFx7cSNnuk_F6LDdA3BuM-Iicnv4Zl9zfgVBgACgYKAeISARUSFQHGX2Mii7oB97l-kLSuXuttsorLgxoVAUF8yKrtqKJtHrr0C9ki94R8xbNH0076;GPS=1;SIDCC=AKEyXzVYElh4-YxZpUn9xuxxzCkeABQAdGcrQu4hT8yFdFT2sn7CX0bb44z3oHiOMrzfXnC9iw;YSC=_jZI9sNFLvM;SID=g.a0000gh--fY2NEEt839s7lEBOQmlD7c3bCunPDFx7cSNnuk_F6LDhE5ty7UionRzN0sSsLYTSAACgYKASMSARUSFQHGX2Mi-RfnLgCR0zVgLUSjUjUS7RoVAUF8yKrLPBIQVyP9phSmln7r4oB00076;__Secure-1PSIDTS=sidts-CjUB5H03P7n_V0Yk3SVb_V9lED6bbld0pBJagHanH_ncCIeVGwLiXZcppA3E83tBulgs8-E9GBAA;SAPISID=K3JzDKARiNoERFCb/AAI1sh8xPfXRwOmFc;__Secure-1PSIDCC=AKEyXzWbk71XHUEt2yqW-W6Wlw4Xs18XjPc72aa6d3vvCvFMDZikVvaLNnXGEs7dIG46YODJ;SSID=AkYPPMRnLdvH6JHbY;ST-1jr1dbr=csn=TehAXaotwvjZDA19&itct=CLkBEPxaIhMIw9KRj6ifjwMVgDLxBR3rvRPLMgpnLWhpZ2gtcmVjWg9GRXdoYXRfdG9fd2F0Y2iaAQYQjh4YngHKAQQr4YsZ;__Secure-1PAPISID=K3JzDKARiNoERFCb/AAI1sh8xPfXRwOmFc;__Secure-1PSID=g.a0000gh--fY2NEEt839s7lEBOQmlD7c3bCunPDFx7cSNnuk_F6LDjjEIK6nl6l9jWIUif7b74QACgYKAXYSARUSFQHGX2MiSlOLRzTblvjLid_eQ_AhVBoVAUF8yKqGkNjh0ZncyASbzy5G_DPB0076;__Secure-3PAPISID=K3JzDKARiNoERFCb/AAI1sh8xPfXRwOmFc;__Secure-3PSIDCC=AKEyXzVlxRILOLSjkUgKF_MkJAEhJApuz6LvrT-eWo9Z4ngQV54GDPqA3aLo1_vUa8-HbWCfUQ;__Secure-3PSIDTS=sidts-CjUB5H03P7n_V0Yk3SVb_V9lED6bbld0pBJagHanH_ncCIeVGwLiXZcppA3E83tBulgs8-E9GBAA;APISID=uOZ24HyZpmKO1x6J/ALCBHyUZHW8RA7fHe;HSID=AhhwDZ8B8ONwaSDWW;LOGIN_INFO=AFmmF2swRAIgJwHIaTLdATeeira2DSeM0_T_W3y6O1im8vxQIuvuBtECIH0kxIQ5otHk0sdhXMHrEsLG0rzDxCKPzP6-5AqIhu-3:QUQ3MjNmemlSTWtMQzRpYVJUOXF4TnpNWHM5Mzk5aUwxYUd4SnJiR014d3JIY3JfQ05CRTNoeDh6R3QtcmNEMkRSWlRZTjByV0l4UmxUX3FnVFBGSG5ncHd0TDVQUzByQzVxYTBiVGpiQ3hvcktOa0I5c0x3Tm4yNWc4Yk5LRTlzUS1ldmpXb3JzcDRUNExKZl9nQXZETXVUSWtMSDRURUJzS0w4VnFJOGRyLXliRXBOR29idDl6Um5tdTBIM18tR253cERQV0g5cjN0cHhCRTh6a3ZmNHF0aFlHZDRBZnRKdw==;PREF=f6=40000000&tz=Europe.Istanbul&f5=30000&f7=100;ST-1fy5w0p=csn=Gkv_ULDr7KqQyQ27&itct=CH0Q_FoiEwiwoKD_p5-PAxV_eXoFHYwgDtwyCmctaGlnaC1yZWNaD0ZFd2hhdF90b193YXRjaJoBBhCOHhieAcoBBCvhixk%3D;ST-stt7tm=csn=Gkv_ULDr7KqQyQ27&itct=CHQQh_YEGAEiEwiwoKD_p5-PAxV_eXoFHYwgDtxaD0ZFd2hhdF90b193YXRjaJoBBQgkEI4eygEEK-GLGQ%3D%3D;VISITOR_INFO1_LIVE=qZTuqYA6BiM";
-await play.setToken({
-     youtube : {
-         cookie : cookies
-     }
-})
+function normalizeYouTubeInput(input) {
+  if (!input) return null;
+  const trimmed = String(input).trim();
+  // Sadece ID geldiyse URL yap
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    return `https://www.youtube.com/watch?v=${trimmed}`;
+  }
+  // Tam URL geldiyse direkt dön
+  return trimmed;
+}
 
-      const streamInfo = await play.stream("https://youtube.com/watch?v=4NRXx6U8ABQ", { quality: 2 });
-console.log(streamInfo)
-    // en iyi audio seç
-    const audioStream = streamInfo.stream; // play-dl zaten en iyi audioyu seçiyor
 
-    // response'a gönder
-    res.set({
-      "Content-Type": "audio/webm", // çoğu format webm veya mp4 olabilir
-      "Content-Disposition": `inline; filename="audio.webm"`,
+    // 2) URL’yi nereden okuyorsan **tek yerde** topla
+    const raw = req.query.url || req.body?.url || req.headers["x-youtube-url"];
+    const watchUrl = normalizeYouTubeInput(raw);
+
+    if (!watchUrl) return res.status(400).send("url parametresi gerekli");
+
+    // 3) Geçerli mi?
+    const kind = await play.validate(watchUrl);
+    if (kind !== "yt_video") {
+      return res.status(400).send("Geçersiz YouTube linki/ID");
+    }
+
+    // 4) Video info al
+    const info = await play.video_basic_info(watchUrl);
+    const fmts = info?.streaming_data?.adaptive_formats ?? [];
+    if (!fmts.length) throw new Error("Format bulunamadı");
+
+    // 5) En iyi ses: 251 (opus ~160kbps) -> 250/249 (opus) -> 140 (m4a ~128kbps) -> diğer ses
+    const byItag = (n) => fmts.find(f => Number(f.itag) === Number(n));
+    let chosen =
+      byItag(251) || byItag(250) || byItag(249) || byItag(140) ||
+      fmts.find(f => f.mime_type?.includes("audio"));
+
+    if (!chosen) throw new Error("Ses formatı bulunamadı");
+
+    // 6A) URL hazırsa (cipher yoksa) googlevideo'ya doğrudan stream (Range passthrough)
+    if (chosen.url) {
+      const range = req.headers.range;
+      const r = await axios.get(chosen.url, {
+        responseType: "stream",
+        headers: range ? { Range: range } : {},
+        // 206 (partial) dönerse de kabul et
+        validateStatus: (s) => s < 400 || s === 206
+      });
+
+      // İçerik başlıklarını forward et
+      const ct =
+        r.headers["content-type"] ||
+        (chosen.mime_type?.split(";")[0] || "audio/webm");
+      res.setHeader("Content-Type", ct);
+      ["content-length", "content-range", "accept-ranges"]
+        .forEach(h => r.headers[h] && res.setHeader(h, r.headers[h]));
+      res.status(r.status);
+      return r.data.pipe(res);
+    }
+
+    // 6B) URL yoksa (signatureCipher), play-dl bizim için çözer
+    const { stream, type, content_length } = await play.stream_from_info(info, {
+      // play-dl en iyi sesi alır; gerekirse 2'yi kaldırabilirsin
+      quality: 2
     });
 
-    audioStream.pipe(res);
-    
-  
-    
-    
-       
+    res.setHeader("Content-Type", type.includes("audio") ? "audio/webm" : "application/octet-stream");
+    if (content_length) res.setHeader("Content-Length", content_length);
+    res.setHeader("Accept-Ranges", "bytes");
+    return stream.pipe(res);
+
+
+
     
       
 
