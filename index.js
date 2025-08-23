@@ -419,7 +419,7 @@ const agentOptions = {
     const agent = await ytdl.createAgent(jsoncookies, agentOptions);
 
       
-const info = await ytdl.getInfo(videoUrl, { agent });
+const info = await ytdl.getInfo(url, { agent });
 console.log(info);
     // En yüksek sesli formatı seç
     const audioFormat = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', agent });
@@ -431,7 +431,7 @@ console.log(info);
     res.setHeader('Content-Type', 'audio/mpeg');
 
     // Ses streamini pipe et
-    ytdl(videoUrl, { format: audioFormat, agent }).pipe(res);
+    ytdl(url, { format: audioFormat, agent }).pipe(res);
 
       
 
