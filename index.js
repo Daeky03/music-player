@@ -9,7 +9,7 @@ import play from 'play-dl';
 import cors from 'cors';
 import axios from "axios";
 import { Innertube } from 'youtubei.js';
-import * as ytdl from '@distube/ytdl-core';
+import ytdl from '@distube/ytdl-core';
 
 const jsoncookies = [
     {
@@ -417,7 +417,11 @@ const agentOptions = {
   localAddress: "127.0.0.1",
 };
        
-    
+    const agent = await ytdl.createAgent(cookies, agentOptions);
+
+      ytdl.getInfo("http://www.youtube.com/watch?v=aqz-KE-bpKQ").then(info => {
+  console.log(info.formats);
+});
 
    res.setHeader('Content-Disposition', 'attachment; filename="audio.opus"');
     res.setHeader('Content-Type', 'audio/opus');
