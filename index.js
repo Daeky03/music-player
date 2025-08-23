@@ -72,7 +72,7 @@ const html = await axios.get(`https://www.youtube.com/watch?v=${url}`, {
     const match = html.data.match(/ytInitialPlayerResponse\s*=\s*(\{.*?\});/);
     if (!match) throw new Error("JSON bulunamadı!");
     const playerResponse = JSON.parse(match[1]);
-console.log(playerResponse.streamingData.formats);
+console.log(playerResponse);
     // 3. Ses formatlarını bul
     let formats = playerResponse.streamingData.adaptiveFormats
       console.log(formats);
