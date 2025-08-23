@@ -64,30 +64,46 @@ app.get('/api/yt-stream', async (req, res) => {
     
     const videoInfo = await innertube.getInfo(url, { client: 'YTMusic' });
 
+
+
 const html = await axios.get(`https://www.youtube.com/watch?v=${url}`, {
-      headers: { Cookie: cookies, "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0" }
-    });
+  headers: { 
+    Cookie: cookies, 
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0" 
+  }
+});
 
-    // 2. JSON'u çıkart
-    const match = html.data.match(/ytInitialPlayerResponse\s*=\s*(\{.*?\});/);
-    if (!match) throw new Error("JSON bulunamadı!");
-    const playerResponse = JSON.parse(match[1]);
-console.log(playerResponse);
-    // 3. Ses formatlarını bul
-    let formats = playerResponse.streamingData.adaptiveFormats
-      console.log(formats);
-    
-      formats.filter(f => f.mimeType.includes("audio"));
+// JSON'u çıkart
+const match = html.data.match(/ytInitialPlayerResponse\s*=\s*(\{.*?\});/);
+if (!match) throw new Error("JSON bulunamadı!");
+const playerResponse = JSON.parse(match[1]);
 
-    // 4. Bitrate’e göre sırala (yüksek, orta, düşük)
-    formats.sort((a, b) => b.bitrate - a.bitrate);
+const streamingData = playerResponse.streamingData;
+if (!streamingData) throw new Error("streamingData yok!");
 
-    const high = formats[0].url;
-    const mid  = formats[Math.floor(formats.length / 2)].url;
-    const low  = formats[formats.length - 1].url;
+// AdaptiveFormats’tan sadece audio olanları al
+let audioFormats = streamingData.adaptiveFormats.filter(f => f.mimeType.startsWith("audio/"));
 
-    // 5. İstediğin linkleri JSON dön (ya da doğrudan redirect et)
-    res.json({ low, mid, high });
+// Bitrate’e göre sırala
+audioFormats.sort((a, b) => b.bitrate - a.bitrate);
+
+// 160kbps’e en yakın bitrate’i seç
+const targetBitrate = 160000; // 160 kbps
+let closest = audioFormats.reduce((prev, curr) => 
+  Math.abs(curr.bitrate - targetBitrate) < Math.abs(prev.bitrate - targetBitrate) ? curr : prev
+);
+
+// URL al
+const audioUrl = closest.url || streamingData.serverAbrStreamingUrl;
+
+const audioResponse = await axios.get(audioUrl, { responseType: "stream", headers: { 
+    Cookie: cookies, 
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0" 
+}
+                                                });
+    res.setHeader("Content-Type", "audio/mpeg");
+    audioResponse.data.pipe(res);
+
     
     
     // stream URL’sini döndür
