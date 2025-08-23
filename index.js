@@ -412,17 +412,10 @@ app.get('/stream/:videoId', async (req, res) => {
     const videoInfo = await yt.getInfo(videoId, { client: 'YTMusic' });
 
       console.log(videoInfo);
-const manifest = await videoInfo.toMpeg(url => {
-  // modify the url
-  // and return it
-    console.log(url)
-  return url;
-});
-    // Header ayarı
-    res.setHeader('Content-Type', 'audio/mpeg');
 
-    // Streami gönderiyoruz
-    res.json({ manifest })
+    // Header ayarı
+       // Streami gönderiyoruz
+    res.json({ info: videoInfo.streaming_data.adaptive_formats })
 
     
   } catch (err) {
