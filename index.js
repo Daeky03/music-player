@@ -121,7 +121,7 @@ app.get('/stream/:videoId', async (req, res) => {
     });
 
     res.setHeader('Content-Type', 'audio/mp4');
-    res.setHeader('Content-Disposition', `attachment; filename="${songId}.mp4"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${videoId}.mp4"`);
 
     // Streami direkt olarak yanıtla
     stream.pipe(res);
