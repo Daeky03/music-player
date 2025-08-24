@@ -189,19 +189,19 @@ async function renderLibrary(filter=''){
   const list = tracks.filter(t => (t.title + ' ' + (t.artist||'')).toLowerCase().includes(filter.toLowerCase()));
   list.forEach(t=>{
     const row = document.createElement('div'); 
-    row.className = 'flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
+    row.className = 'flex items-center justify-between p-3 mb-2 rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all';
     row.innerHTML = `
       <div class="flex items-center gap-3">
-        <img src="${t.artwork||'/icons/icon-192.png'}" class="w-12 h-12 rounded-lg"/>
+        <img src="${t.artwork||'/icons/icon-192.png'}" class="w-12 h-12 rounded-lg object-cover"/>
         <div>
-          <div class="font-medium">${t.title}</div>
-          <div class="text-xs text-gray-600 dark:text-white/60">${t.artist||''}</div>
+          <div class="font-medium truncate">${t.title}</div>
+          <div class="text-xs text-gray-600 dark:text-white/60 truncate">${t.artist||''}</div>
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <button data-id="${t.id}" class="play px-3 py-1.5 rounded-full bg-accent text-white">Çal</button>
-        <button data-id="${t.id}" class="addpl px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Playlist</button>
-        <button data-id="${t.id}" class="cache px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Cache</button>
+        <button data-id="${t.id}" class="play px-3 py-1.5 rounded-full bg-accent text-white hover:bg-accent-dark">Çal</button>
+        <button data-id="${t.id}" class="addpl px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20">Playlist</button>
+        <button data-id="${t.id}" class="cache px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20">Cache</button>
       </div>
     `;
     tracksEl.appendChild(row);
@@ -216,18 +216,19 @@ async function renderLibrary(filter=''){
 
       ytResults.forEach(t=>{
         const row = document.createElement('div'); 
-        row.className = 'flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
+        row.className = 'flex items-center justify-between p-3 mb-2 rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all';
         row.innerHTML = `
           <div class="flex items-center gap-3">
-            <img src="${t.thumbnail}" class="w-12 h-12 rounded-lg"/>
+            <img src="${t.thumbnail}" class="w-12 h-12 rounded-lg object-cover"/>
             <div>
-              <div class="font-medium">${t.title}</div>
-              <div class="text-xs text-gray-600 dark:text-white/60">${t.author}</div>
+              <div class="font-medium truncate">${t.title}</div>
+              <div class="text-xs text-gray-600 dark:text-white/60 truncate">${t.author}</div>
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button data-link="${t.url}" class="play px-3 py-1.5 rounded-full bg-accent text-white">Çal</button>
-            <button data-link="${t.url}" class="addpl px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Playlist</button>
+            <button data-link="${t.url}" class="play px-3 py-1.5 rounded-full bg-accent text-white hover:bg-accent-dark">Çal</button>
+            <button data-link="${t.url}" class="addpl px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20">Playlist</button>
+            <button data-link="${t.url}" class="cache-yt px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20">Cache</button>
           </div>
         `;
         tracksEl.appendChild(row);
@@ -238,9 +239,8 @@ async function renderLibrary(filter=''){
   }
 }
 
-
-// Playlist'e ekleme (SweetAlert2 ile doğrudan seçim)
-async function addToPlaylistDialog(trackId){
+// Playlist'e ekleme
+async function addToPlaylistDialog(trackIdOrUrl){
   if(playlists.length===0){ swalToast('Önce playlist oluştur'); return; }
   const options = playlists.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   const { isConfirmed, value:plId } = await Swal.fire({
@@ -251,10 +251,11 @@ async function addToPlaylistDialog(trackId){
   });
   if(!isConfirmed) return;
   const pl = playlists.find(p=>p.id===plId); if(!pl) return;
-  if(!pl.items.includes(trackId)) pl.items.push(trackId);
+  if(!pl.items.includes(trackIdOrUrl)) pl.items.push(trackIdOrUrl);
   save(LS_PLAYLISTS, playlists); renderPlaylists(); swalToast('Eklendi');
 }
 
+// Event listener
 tracksEl.addEventListener('click', async (e) => {
   const btn = e.target.closest('button');
   if (!btn) return;
@@ -284,28 +285,34 @@ tracksEl.addEventListener('click', async (e) => {
   // YouTube track
   const url = btn.dataset.link;
   if (url) {
+    const params = new URL(url).searchParams;
+    const videoId = params.get("v");
+    if (!videoId) return;
+
     if (btn.classList.contains('play')) {
-      // API üzerinden stream linki al
-      try {
-        const params = new URL(url).searchParams;
-  const videoId = params.get("v");
-        
-      
-        if (videoId) {
-          audio.src = `/stream/${videoId}`;
-          audio.play();
-        }
-      } catch (err) {
-        console.error('YT Stream error:', err);
-        swalToast('Çalma hatası');
-      }
+      audio.src = `/stream/${videoId}`; // mp4a endpoint
+      audio.play();
     }
+
     if (btn.classList.contains('addpl')) {
-      // YouTube linkini playlist’e ekle
-      addToPlaylistDialog(url);
+      addToPlaylistDialog(url); // linki playlist’e ekle
+    }
+
+    if (btn.classList.contains('cache-yt')) {
+      try {
+        const res = await fetch(`/stream/${videoId}`);
+        if (!res.ok) throw new Error();
+        const clone = res.clone();
+        const c = await caches.open('offline-audio-v1');
+        await c.put(`/stream/${videoId}`, clone);
+        swalToast('YT Cache tamam');
+      } catch {
+        swalToast('YT indirme hatası');
+      }
     }
   }
 });
+
 
 
 function renderPlaylists(){ playlistListEl.innerHTML=''; playlists.forEach(pl=>{
