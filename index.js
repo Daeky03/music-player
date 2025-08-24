@@ -113,6 +113,18 @@ app.get('/stream/:videoId', async (req, res) => {
 
       console.log(videoInfo);
 
+        const stream = await yt.download(videoId, {
+      type: 'audio', // audio, video or video+audio
+      quality: 'best', // best, bestefficiency, 144p, 240p, 480p, 720p and so on.
+      format: 'mp4', // media container format,
+      client: 'YTMUSIC'
+    });
+
+    res.setHeader('Content-Type', 'audio/mp4');
+    res.setHeader('Content-Disposition', `attachment; filename="${songId}.mp4"`);
+
+    // Streami direkt olarak yanıtla
+    await pipe(stream, res);
     // Header ayarı
        // Streami gönderiyoruz
     const video = videoInfo.streaming_data.adaptive_formats[0];
