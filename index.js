@@ -471,7 +471,7 @@ const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
     const html = await response.text();
 
       const playerJsUrl = await getPlayerJsUrl(html);
-
+console.log(playerJsUrl);
     const decipher = await getPlayerFunction(playerJsUrl);
 
     // URL'leri çöz
