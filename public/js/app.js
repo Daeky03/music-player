@@ -71,7 +71,7 @@ function seekBy(sec){ audio.currentTime = Math.max(0, Math.min(audio.duration||0
 
 
 const btnRew = $('#btnRew');
-const btnFwd = $('#btnFwd');
+const btnFwd = $('#btnFf');
 
 const minibtnRew = $('#btnMiniRew');
 const minibtnFwd = $('#btnMiniFf');
