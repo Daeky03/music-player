@@ -149,7 +149,7 @@ const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
 console.log(playerJsUrl);
     const res = await fetch(playerJsUrl);
     const js = await res.text();
-
+console.log(js.slice(0, 50))
     // s parametresini çözen fonksiyonu regex ile bul
 const decipherScript = extractDecipherFunc(js);
 
