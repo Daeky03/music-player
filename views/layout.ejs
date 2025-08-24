@@ -1,14 +1,14 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="tr" class="h-full">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>SLP — Lark Style Player</title>
-  <link rel="manifest" href="/manifest.json"/>
-  <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
-  <meta name="theme-color" content="#0b1220"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SLP — Stream Lark Player</title>
 
-  <!-- Tailwind (CDN for dev) -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0b0b0f" />
+
+  <!-- Tailwind CDN (dev-friendly) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -16,129 +16,127 @@
       theme: {
         extend: {
           colors: {
-            accent: '#ff6b6b',
-            accent2: '#ff9472',
-            bgsoft: '#0b0f1a',
-            panel: '#081026'
+            ink: '#0b0b0f',
+            panel: '#0f0f14',
+            accent: '#a855f7',
+            accent2: '#7c3aed',
+            lightBg: '#f6f7fb'
           },
-          boxShadow: { soft: '0 10px 30px rgba(2,6,23,0.6)' },
-          borderRadius: { 'full-xl': '1.25rem' }
+          boxShadow: {
+            glass: '0 10px 30px rgba(0,0,0,0.35)'
+          },
+          borderRadius: { xl2: '1rem' }
         }
       }
-    };
-    // prevent FOUC
-    (function(){ const t = localStorage.getItem('theme')||'dark'; if(t==='dark') document.documentElement.classList.add('dark'); })();
+    }
   </script>
 
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <style>
-    /* extra small styling for player */
-    .control-btn { width:52px; height:52px; display:inline-grid; place-items:center; border-radius:999px; }
-    .control-btn--big { width:72px; height:72px; }
-    input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:14px; height:14px; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.35); }
-    input[type="range"]::-moz-range-thumb { width:14px; height:14px; border-radius:50%; background:#fff; border: none; }
-    /* text ellipsis helper */
-    .truncate-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    /* extra small tweaks */
+    .progress-track { background: linear-gradient(90deg,#2b0b3d 0%, #3e0d66 100%); height:6px; border-radius:999px; }
+    .progress-thumb { width:14px; height:14px; border-radius:50%; background:#fff; box-shadow:0 4px 10px rgba(0,0,0,.4); transform:translateY(-4px); }
+    .badge-down { background: linear-gradient(90deg,#7c3aed,#a855f7); color:white; font-size:10px; padding:2px 6px; border-radius:999px; }
+    /* compact playlist card */
+    .pl-card { transition: transform .18s ease, box-shadow .18s ease; }
+    .pl-card:hover { transform: translateY(-6px); box-shadow: 0 12px 30px rgba(0,0,0,.35); }
   </style>
+
+  <script>
+    // prevent FOUC for dark
+    (function(){
+      const t = localStorage.getItem('theme') || 'dark';
+      if (t === 'dark') document.documentElement.classList.add('dark');
+    })();
+  </script>
 </head>
-<body class="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-bgsoft dark:to-panel text-slate-900 dark:text-white">
-  <div class="min-h-screen flex flex-col">
-    <!-- header -->
-    <header class="w-full border-b border-slate-200 dark:border-white/6 bg-white/80 dark:bg-bgsoft/80 backdrop-blur">
-      <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+<body class="h-full bg-lightBg dark:bg-ink text-gray-900 dark:text-white">
+  <div class="min-h-screen grid grid-rows-[auto,1fr]">
+    <header class="px-4 py-3 border-b border-black/5 dark:border-white/10 bg-white/80 dark:bg-panel/80 backdrop-blur">
+      <div class="max-w-6xl mx-auto flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <img src="/icons/icon-192.png" class="w-10 h-10 rounded-lg shadow-sm" alt="logo"/>
+          <img src="/icons/icon-192.png" class="w-9 h-9 rounded-md" alt="SLP"/>
           <div>
-            <div class="font-semibold text-lg">SLP</div>
-            <div class="text-xs text-slate-500 dark:text-white/50">Lark-inspired Player</div>
+            <h1 class="text-lg font-semibold tracking-tight">SLP</h1>
+            <div class="text-xs text-gray-500 dark:text-white/50 -mt-1">YouTube powered, Lark-like player</div>
           </div>
         </div>
-
         <div class="flex items-center gap-2">
-          <button id="themeToggle" class="px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/6">Tema: <span id="themeLabel">Koyu</span></button>
+          <button id="themeToggle" class="px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10 text-sm">Tema: <span id="themeLabel">Koyu</span></button>
           <button id="installBtn" class="hidden px-3 py-1.5 rounded-full bg-accent text-white">Yükle</button>
         </div>
       </div>
     </header>
 
-    <!-- main content area -->
-    <main class="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
-      <div class="grid grid-cols-1 lg:grid-cols-[1fr,360px] gap-6">
-        <!-- content (index.ejs injected here) -->
-        <section class="space-y-4">
-          <%- include(content) %>
-        </section>
-
-        <!-- right column: big player + playlists -->
-        <aside class="sticky top-6">
-          <div class="bg-white/70 dark:bg-white/3 rounded-2xl p-4 shadow-soft drop-shadow-sm">
-            <!-- Big artwork & controls (Lark-like) -->
-            <div class="flex flex-col items-center gap-4">
-              <div id="bigArtWrap" class="w-56 h-56 rounded-2xl overflow-hidden bg-black/5">
-                <img id="npArt" src="/icons/icon-512.png" class="w-full h-full object-cover"/>
-              </div>
-
-              <div class="text-center">
-                <div id="npTitle" class="font-semibold truncate-2 max-w-[220px]">Çalan yok</div>
-                <div id="npArtist" class="text-sm text-slate-500 dark:text-white/60">—</div>
-              </div>
-
-              <div class="w-full">
-                <div class="flex items-center gap-3 justify-center">
-                  <button id="btnPrev" class="control-btn bg-white/5 hover:bg-white/10" title="Önceki">
-                    <!-- prev -->
-                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6v12l8.5-6L6 6zm10 0v12h2V6h-2z"/></svg>
-                  </button>
-
-                  <button id="btnRew" class="control-btn bg-white/5 hover:bg-white/10" title="-10s">-10</button>
-
-                  <button id="btnPlay" class="control-btn control-btn--big bg-accent text-white shadow-lg transform active:scale-95" title="Oynat">
-                    <svg id="playIcon" class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3v18l15-9z"/></svg>
-                  </button>
-
-                  <button id="btnFf" class="control-btn bg-white/5 hover:bg-white/10" title="+10s">+10</button>
-
-                  <button id="btnNext" class="control-btn bg-white/5 hover:bg-white/10" title="Sonraki">
-                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 12 5 19V5l8.5 7zM19 5v14h-2V5h2z"/></svg>
-                  </button>
-                </div>
-
-                <div class="mt-4 flex items-center gap-3">
-                  <span id="npCur" class="text-xs w-10 text-right">0:00</span>
-                  <input id="seek" type="range" min="0" max="100" value="0" class="flex-1"/>
-                  <span id="npDur" class="text-xs w-10">0:00</span>
-                </div>
-
-                <div class="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-white/50">
-                  <div class="flex items-center gap-2">
-                    <button id="btnRepeat" class="px-2 py-1 rounded-full bg-white/6">⟲</button>
-                    <button id="btnShuffle" class="px-2 py-1 rounded-full bg-white/6">🔀</button>
-                  </div>
-                  <div>SLP</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- playlists / downloads panel -->
-          <div class="mt-4 bg-white/60 dark:bg-white/3 rounded-2xl p-3 shadow-soft">
-            <div class="flex items-center justify-between mb-2">
-              <div class="text-sm font-medium">Çalma Listeleri</div>
-              <button id="newPlaylistBtn" class="text-xs px-2 py-1 rounded-full bg-accent text-white">Yeni</button>
-            </div>
-            <ul id="playlistList" class="space-y-2"></ul>
-          </div>
-        </aside>
-      </div>
+    <main class="max-w-6xl mx-auto w-full p-4">
+      <%- include(content) %>
     </main>
+  </div>
 
-    <footer class="py-6 text-center text-xs text-slate-500 dark:text-white/50">
-      © <%= new Date().getFullYear() %> SLP — Lark-inspired skin
-    </footer>
+  <!-- Mini Player (fixed bottom) -->
+  <div id="miniPlayer" class="fixed inset-x-0 bottom-4 mx-auto max-w-3xl px-4">
+    <div class="bg-gradient-to-r from-[#140616] to-[#1b0524] text-white rounded-2xl p-2 flex items-center gap-3 shadow-glass pl-3 cursor-pointer">
+      <img id="miniArt" src="/icons/icon-192.png" class="w-12 h-12 rounded-lg object-cover"/>
+      <div class="flex-1 min-w-0">
+        <div id="miniTitle" class="truncate font-medium">Çalan yok</div>
+        <div id="miniArtist" class="text-xs opacity-80">—</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="miniPlay" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">▶</button>
+        <button id="miniAdd" class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">＋</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expanded Player modal (hidden) -->
+  <div id="bigPlayer" class="hidden fixed inset-0 z-50 bg-black/80 flex items-end md:items-center justify-center p-6">
+    <div class="bg-gradient-to-b from-[#120712] to-[#0b0b0f] w-full md:w-[760px] max-h-[92vh] rounded-2xl p-6 overflow-auto">
+      <div class="flex flex-col md:flex-row items-center gap-6">
+        <img id="bigArt" src="/icons/icon-512.png" class="w-44 h-44 rounded-2xl object-cover"/>
+        <div class="flex-1">
+          <div class="text-xl font-semibold" id="bigTitle">—</div>
+          <div class="text-sm text-gray-300 mt-1" id="bigArtist">—</div>
+
+          <div class="mt-6">
+            <div class="flex items-center gap-3 justify-center md:justify-start">
+              <button id="btnShuffle" class="p-3 rounded-full bg-white/5">🔀</button>
+              <button id="btnPrev" class="p-3 rounded-full bg-white/5">⏮</button>
+              <button id="btnPlay" class="px-6 py-3 rounded-full bg-accent text-white text-lg">▶</button>
+              <button id="btnNext" class="p-3 rounded-full bg-white/5">⏭</button>
+              <button id="btnLoop" class="p-3 rounded-full bg-white/5">⟲</button>
+            </div>
+
+            <div class="mt-5">
+              <div class="flex items-center gap-3">
+                <span id="curTime" class="text-xs w-12 text-right">0:00</span>
+                <div class="flex-1">
+                  <div class="progress-track relative h-2 rounded-full">
+                    <div id="progressFill" class="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-[#7c3aed] to-[#a855f7]" style="width:0%"></div>
+                    <div id="progressThumb" class="absolute top-[-6px] left-0 progress-thumb"></div>
+                  </div>
+                </div>
+                <span id="durTime" class="text-xs w-12">0:00</span>
+              </div>
+            </div>
+
+            <div class="mt-4 flex items-center gap-3 justify-between">
+              <div class="flex gap-2">
+                <button id="btnDownload" class="px-3 py-1 rounded-full bg-white/5">İndir</button>
+                <button id="btnAddToPl" class="px-3 py-1 rounded-full bg-white/5">Playlist'e Ekle</button>
+                <button id="btnShare" class="px-3 py-1 rounded-full bg-white/5">Paylaş</button>
+              </div>
+              <div>
+                <button id="btnClose" class="px-3 py-1 rounded-full bg-white/5">Kapat</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <audio id="audioEl" preload="metadata"></audio>
-
-  <!-- app.js -->
   <script type="module" src="/js/app.js"></script>
 </body>
 </html>
