@@ -438,7 +438,7 @@ async function showNowPlayingNotification(t){ try{
   const reg = await navigator.serviceWorker.getRegistration(); if(!reg) return;
   await reg.showNotification('Çalınıyor: '+t.title, {
     body: (t.artist||'Bilinmiyor') + ' — SLP Player',
-    icon: t.artwork||'/icons/icon-192.png',
+    icon: t.artwork || t.thumbnail,
     badge: '/icons/icon-192.png',
     tag: 'now-playing',
     renotify: true,
