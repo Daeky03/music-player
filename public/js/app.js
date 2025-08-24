@@ -1,605 +1,620 @@
 // public/js/app.js
-// SLP — Yalnızca YouTube + Cache odaklı, EJS ID'lerine tam uyumlu, dark/light temaya duyarlı
+// Full-featured frontend player logic — mobile-first, media session, notifications, cache, yt search & queue.
+// Assumes DOM structure from layout.ejs / index.ejs provided earlier.
 
-(() => {
-  'use strict';
+const audio = document.getElementById('audioEl');
 
-  // ==== Sabitler & Depo Anahtarları ====
-  const API_SEARCH = '/api/search';          // GET ?q=
-  const STREAM = (vid) => `/stream/${vid}`;  // server tarafı Range destekli olmalı
-  const CACHE_NAME = 'offline-audio-v1';     // mevcut sw.js ile uyumlu
-  const LS_PLAYLISTS = 'mp_playlists_v3';    // senin önceki anahtarına sadık
-  const OFFLINE_ONLY_SELECTOR = '#view-library'; // offline'da buraya sadece cache listesi basacağız
+// UI refs (big player + controls)
+const npArt = document.getElementById('npArt');
+const npTitle = document.getElementById('npTitle');
+const npArtist = document.getElementById('npArtist');
+const npCur = document.getElementById('npCur');
+const npDur = document.getElementById('npDur');
+const seek = document.getElementById('seek');
 
-  // ==== Kısayol yardımcıları ====
-  const $ = (sel) => document.querySelector(sel);
-  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-  const safeJSON = (str, fb=null) => { try { return JSON.parse(str); } catch { return fb; } };
-  const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-  const load = (k, fb) => safeJSON(localStorage.getItem(k), fb);
-  const fmt = (t) => {
-    if (!isFinite(t) || t < 0) t = 0;
-    const m = Math.floor(t/60);
-    const s = Math.floor(t%60).toString().padStart(2,'0');
-    return `${m}:${s}`;
-  };
-  const debounce = (fn, ms=300) => { let to; return (...args)=>{ clearTimeout(to); to=setTimeout(()=>fn(...args), ms); }; };
+const btnPlay = document.getElementById('btnPlay');
+const btnPrev = document.getElementById('btnPrev');
+const btnNext = document.getElementById('btnNext');
+const btnRew = document.getElementById('btnRew');
+const btnFf = document.getElementById('btnFf');
+const btnRepeat = document.getElementById('btnRepeat');
+const btnShuffle = document.getElementById('btnShuffle');
+const btnExpand = document.getElementById('btnExpand');
+const btnClose = document.getElementById('btnClose');
 
-  // ==== Global durum ====
-  let playlists = load(LS_PLAYLISTS, null);
-  if (!playlists) {
-    // İlk girişte otomatik 1 playlist
-    playlists = [{ id: 'pl1', name: 'Favoriler', cover: '/icons/icon-512.png', items: [] }]; // items: ['yt:VIDEOID', ...]
-    save(LS_PLAYLISTS, playlists);
+const tracksEl = document.getElementById('tracks');
+const playlistListEl = document.getElementById('playlistList');
+const downloadListEl = document.getElementById('downloadList');
+const searchInput = document.getElementById('searchInput');
+const searchBtnLocal = document.getElementById('searchBtnLocal');
+const installBtn = document.getElementById('installBtn');
+const themeToggle = document.getElementById('themeToggle');
+const themeLabel = document.getElementById('themeLabel');
+
+let deferredPrompt = null;
+
+// PWA install prompt handling
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn?.classList.remove('hidden');
+});
+installBtn?.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const res = await deferredPrompt.userChoice.catch(()=>({outcome:'dismissed'}));
+  deferredPrompt = null;
+  installBtn.classList.add('hidden');
+});
+
+// Theme toggle
+function setTheme(mode) {
+  if (mode === 'dark') {
+    document.documentElement.classList.add('dark');
+    themeLabel.textContent = 'Koyu';
+  } else {
+    document.documentElement.classList.remove('dark');
+    themeLabel.textContent = 'Açık';
   }
+  localStorage.setItem('theme', mode);
+}
+setTheme(localStorage.getItem('theme') || 'dark');
+themeToggle?.addEventListener('click', () => {
+  const cur = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+  setTheme(cur === 'dark' ? 'light' : 'dark');
+});
 
-  let queue = [];         // [{videoId,title,author,thumbnail}]
-  let currentIndex = -1;
-  let shuffle = false;
-  let repeat = 'off';     // off|one|all
-  let lastSearch = [];    // YouTube sonuçları
+// Storage keys and sample tracks
+const LS_TRACKS = 'mp_tracks_v3';
+const LS_PLAYLISTS = 'mp_playlists_v3';
+const SAMPLE_TRACKS = [
+  // Note: local tracks are present but play is disabled per request (only YouTube & cached YT allowed)
+  { id: 'local1', title: 'Local Example', artist: 'Artist', url: '/audio/sample1.mp3', artwork: '/icons/icon-512.png', duration: 0 }
+];
 
-  // ==== DOM Referansları (EJS ile birebir) ====
-  const audio           = $('#audioEl');
+function load(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
+}
+function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 
-  // sol/üst alanlar
-  const themeToggle     = $('#themeToggle');
-  const themeLabel      = $('#themeLabel');
-  const installBtn      = $('#installBtn');
+let tracks = load(LS_TRACKS, SAMPLE_TRACKS);
+let playlists = load(LS_PLAYLISTS, [{ id:'pl1', name:'Favoriler', cover:null, items:[] }]);
 
-  // sekmeler
-  const viewLibrary     = $('#view-library');
-  const viewPlaylists   = $('#view-playlists');
-  const viewDownloaded  = $('#view-downloaded'); // tasarıma göre gizli kalabilir ama ID var
-  const tracksEl        = $('#tracks');
-  const playlistListEl  = $('#playlistList');
-  const downloadListEl  = $('#downloadList');
+// Player state
+let queue = [];            // array of items: {id, type:'yt'|'local', title, artist, artwork, url? , videoId?}
+let currentIndex = -1;
+let repeatMode = 'off';    // off | one | all
+let shuffle = false;
+let seekDragging = false;
 
-  // arama
-  const searchInput     = $('#search');
+// Helpers
+const fmt = (t) => {
+  if (!isFinite(t) || t < 0) t = 0;
+  const m = Math.floor(t/60), s = Math.floor(t%60).toString().padStart(2,'0');
+  return `${m}:${s}`;
+};
 
-  // playlist butonları
-  const newPlaylistBtn  = $('#newPlaylistBtn');
-  const notifyPermBtn   = $('#notifyPermBtn');
-
-  // mini oynatıcı
-  const npArtMini       = $('#npArtMini');
-  const npTitleMini     = $('#npTitleMini');
-  const npArtistMini    = $('#npArtistMini');
-  const btnMiniRew      = $('#btnMiniRew');
-  const btnMiniPrev     = $('#btnMiniPrev');
-  const btnMiniPlay     = $('#btnMiniPlay');
-  const btnMiniNext     = $('#btnMiniNext');
-  const btnMiniFf       = $('#btnMiniFf');
-  const btnExpand       = $('#btnExpand');
-  const miniPlayer      = $('#miniPlayer');
-
-  // büyük oynatıcı
-  const expandedPanel   = $('#expandedPlayer');
-  const npArt           = $('#npArt');
-  const npTitle         = $('#npTitle');
-  const npArtist        = $('#npArtist');
-  const npCur           = $('#npCur');
-  const npDur           = $('#npDur');
-  const seek            = $('#seek');
-  const btnClose        = $('#btnClose');
-  const btnPlay         = $('#btnPlay');
-  const btnPrev         = $('#btnPrev');
-  const btnNext         = $('#btnNext');
-  const btnRew          = $('#btnRew');
-  const btnFf           = $('#btnFf');
-  const btnRepeat       = $('#btnRepeat');
-  const btnShuffle      = $('#btnShuffle');
-
-  // ==== PWA Kurulum & Tema ====
-  let deferredPrompt = null;
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+function updateUIPlaying(isPlaying) {
+  if (isPlaying) {
+    btnPlay.classList.add('playing');
+    btnPlay.innerHTML = '⏸';
+  } else {
+    btnPlay.classList.remove('playing');
+    btnPlay.innerHTML = '▶';
   }
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    installBtn?.classList.remove('hidden');
-  });
-  installBtn?.addEventListener('click', async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    deferredPrompt = null;
-    installBtn.classList.add('hidden');
-  });
+}
 
-  const setTheme = (mode) => {
-    if (mode === 'dark') {
-      document.documentElement.classList.add('dark');
-      themeLabel && (themeLabel.textContent = 'Koyu');
+// Media Session & Notification helpers
+function updateMediaSessionMeta(item) {
+  if (!('mediaSession' in navigator)) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: item.title || 'Unknown',
+      artist: item.artist || '',
+      album: 'SLP',
+      artwork: [{ src: item.artwork || '/icons/icon-512.png', sizes: '512x512', type: 'image/png' }]
+    });
+    navigator.mediaSession.setActionHandler('play', async ()=> await audio.play());
+    navigator.mediaSession.setActionHandler('pause', ()=> audio.pause());
+    navigator.mediaSession.setActionHandler('previoustrack', playPrev);
+    navigator.mediaSession.setActionHandler('nexttrack', playNext);
+    navigator.mediaSession.setActionHandler('seekbackward', ()=> audio.currentTime = Math.max(0, audio.currentTime - 10));
+    navigator.mediaSession.setActionHandler('seekforward', ()=> audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10));
+    navigator.mediaSession.setActionHandler('seekto', (details) => {
+      if (details.fastSeek && typeof audio.fastSeek === 'function') audio.fastSeek(details.seekTime);
+      else audio.currentTime = details.seekTime;
+    });
+  } catch(e) { /* ignore */ }
+}
+
+async function showNowPlayingNotification(item) {
+  try {
+    if (!('serviceWorker' in navigator) || Notification.permission !== 'granted') return;
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return;
+    // Make artwork available: if remote CORS issues, fallback to icon
+    const icon = item.artwork || '/icons/icon-192.png';
+    await reg.showNotification(item.title || 'Çalınıyor', {
+      body: (item.artist || '') + ' — SLP',
+      icon,
+      badge: '/icons/icon-192.png',
+      tag: 'now-playing',
+      renotify: true,
+      actions: [
+        { action: 'prev', title: '⏮' },
+        { action: 'rew', title: '-10s' },
+        { action: 'toggle', title: audio.paused ? '▶' : '⏸' },
+        { action: 'ff', title: '+10s' },
+        { action: 'next', title: '⏭' }
+      ]
+    });
+  } catch (e) {
+    console.warn('Notif error', e);
+  }
+}
+
+// Queue management
+function setQueue(items, start = 0) {
+  queue = items.slice();
+  currentIndex = Math.min(Math.max(start, 0), queue.length - 1);
+  // Play index safely
+  if (queue.length > 0 && currentIndex >= 0) playIndex(currentIndex);
+}
+
+function playIndex(idx) {
+  if (!queue[idx]) return;
+  currentIndex = idx;
+  const item = queue[idx];
+
+  // If cached in Cache API -> play cached response
+  const cacheKey = (item.type === 'yt' && item.videoId) ? `/stream/${item.videoId}` : item.url;
+  caches.open('yt-audio-v1').then(c => c.match(cacheKey)).then(hit => {
+    if (hit) {
+      // cached -> use blob URL
+      return hit.blob().then(b => URL.createObjectURL(b));
     } else {
-      document.documentElement.classList.remove('dark');
-      themeLabel && (themeLabel.textContent = 'Açık');
+      // not cached -> use stream endpoint (for yt) or direct url for local (local play disabled by requirement)
+      if (item.type === 'yt') return `/stream/${item.videoId}`;
+      return item.url || '';
     }
-    localStorage.setItem('theme', mode);
-  };
-  setTheme(localStorage.getItem('theme') || 'dark');
-  themeToggle?.addEventListener('click', () => {
-    const cur = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-    setTheme(cur === 'dark' ? 'light' : 'dark');
+  }).then(src => {
+    if (!src) return;
+    audio.src = src;
+    audio.play().catch(()=>{});
+    // Update UI meta
+    npTitle.textContent = item.title || '—';
+    npArtist.textContent = item.artist || '—';
+    npArt.src = item.artwork || '/icons/icon-512.png';
+    updateMediaSessionMeta(item);
+    showNowPlayingNotification(item);
+    updateUIPlaying(true);
+  }).catch(err => {
+    console.error('playIndex error', err);
   });
+}
 
-  // ==== Bildirim izin butonu ====
-  notifyPermBtn?.addEventListener('click', async () => {
-    try {
-      const perm = await Notification.requestPermission();
-      Swal.fire({ title: 'Bildirim izni', text: perm, icon: 'info', background:'#12121a', color:'#fff' });
-    } catch {
-      Swal.fire({ title:'Desteklenmiyor', icon:'error', background:'#12121a', color:'#fff' });
-    }
-  });
-
-  // ==== Sekme gösterme (ID’ler sabit) ====
-  function showView(v) {
-    viewLibrary.classList.toggle('hidden', v !== 'lib');
-    viewPlaylists.classList.toggle('hidden', v !== 'pl');
-    viewDownloaded.classList.toggle('hidden', v !== 'dl');
+function playNext() {
+  if (queue.length === 0) return;
+  if (shuffle) {
+    const next = Math.floor(Math.random() * queue.length);
+    playIndex(next);
+    return;
   }
-  $('#tab-library')?.addEventListener('click', ()=>showView('lib'));
-  $('#tab-playlists')?.addEventListener('click', ()=>showView('pl'));
-  $('#tab-downloaded')?.addEventListener('click', ()=>showView('dl'));
-
-  // ==== Arama (Yalnızca YouTube) ====
-  const doSearch = debounce(async (q) => {
-    if (!tracksEl) return;
-    if (!q || !q.trim()) { tracksEl.innerHTML = ''; return; }
-    tracksEl.innerHTML = `<div class="text-sm opacity-70">Aranıyor…</div>`;
-    try {
-      const res = await fetch(`${API_SEARCH}?q=${encodeURIComponent(q)}`);
-      if (!res.ok) throw new Error('Search failed');
-      const data = await res.json();
-      const list = (data.results || []).map(r => {
-        let videoId = null;
-        if (r.id) videoId = typeof r.id === 'string' ? r.id : (r.id.videoId || null);
-        if (!videoId && r.url) {
-          try { videoId = new URL(r.url).searchParams.get('v'); } catch {}
-        }
-        return {
-          videoId,
-          title: r.title || '—',
-          author: r.author || r.channel || '',
-          thumbnail: r.thumbnail || r.thumb || '/icons/icon-192.png'
-        };
-      }).filter(x => x.videoId);
-      lastSearch = list;
-      renderYouTubeResults(list);
-    } catch (e) {
-      console.error('search error', e);
-      tracksEl.innerHTML = `<div class="text-sm text-red-500">Arama başarısız</div>`;
-    }
-  }, 350);
-
-  searchInput?.addEventListener('input', () => doSearch(searchInput.value));
-  searchInput?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(searchInput.value); });
-
-  function renderYouTubeResults(list) {
-    tracksEl.innerHTML = '';
-    list.forEach(t => {
-      const row = document.createElement('div');
-      row.className = 'flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
-      row.innerHTML = `
-        <div class="flex items-center gap-3 min-w-0">
-          <img src="${t.thumbnail}" class="w-12 h-12 rounded-lg object-cover"/>
-          <div class="min-w-0">
-            <div class="font-medium truncate">${t.title}</div>
-            <div class="text-xs opacity-70 truncate">${t.author}</div>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <button class="yt-play px-3 py-1.5 rounded-full bg-accent text-white" data-vid="${t.videoId}">Çal</button>
-          <button class="yt-add  px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10" data-vid="${t.videoId}">Liste</button>
-          <button class="yt-dl   px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10" data-vid="${t.videoId}">İndir</button>
-        </div>
-      `;
-      tracksEl.appendChild(row);
-    });
+  let nextIndex = currentIndex + 1;
+  if (nextIndex >= queue.length) {
+    if (repeatMode === 'all') nextIndex = 0;
+    else { /* stop at end */ audio.pause(); return; }
   }
+  playIndex(nextIndex);
+}
 
-  // YouTube sonuç butonları (event delegation)
-  tracksEl?.addEventListener('click', async (e) => {
-    const btn = e.target.closest('button');
-    if (!btn) return;
-    const vid = btn.dataset.vid;
-    if (!vid) return;
-
-    if (btn.classList.contains('yt-play')) {
-      // Tüm arama sonucunu kuyruk yap, tıklananla başla
-      queue = lastSearch.map(x => ({ videoId:x.videoId, title:x.title, author:x.author, thumbnail:x.thumbnail }));
-      const idx = queue.findIndex(x => x.videoId === vid);
-      startQueueAt(idx === -1 ? 0 : idx);
-    }
-    if (btn.classList.contains('yt-add')) {
-      promptAddToPlaylist(vid);
-    }
-    if (btn.classList.contains('yt-dl')) {
-      const meta = lastSearch.find(x=>x.videoId===vid) || {};
-      await cacheVideo(vid, meta);
-      // indirildi rozeti gerekiyorsa ileride burada güncelleyebilirsin
-    }
-  });
-
-  // ==== Playlist Oluştur / Listele / Düzenle ====
-  function renderPlaylists() {
-    playlistListEl.innerHTML = '';
-    playlists.forEach(pl => {
-      const li = document.createElement('li');
-      li.className = 'group relative rounded-xl overflow-hidden bg-black/5 dark:bg-white/10';
-      li.innerHTML = `
-        <div class="aspect-square w-full bg-black/10">
-          <img src="${pl.cover||'/icons/icon-512.png'}" class="w-full h-full object-cover"/>
-        </div>
-        <div class="p-2 flex items-center justify-between">
-          <div class="min-w-0">
-            <div class="font-medium truncate">${pl.name}</div>
-            <div class="text-xs opacity-70">${pl.items.length} parça</div>
-          </div>
-          <div class="flex gap-1">
-            <button data-id="${pl.id}" class="open px-2 py-1 rounded-full bg-accent text-white text-xs">Çal</button>
-            <button data-id="${pl.id}" class="share px-2 py-1 rounded-full bg-black/10 text-xs">Paylaş</button>
-            <button data-id="${pl.id}" class="edit px-2 py-1 rounded-full bg-black/10 text-xs">Düzenle</button>
-            <button data-id="${pl.id}" class="del  px-2 py-1 rounded-full bg-black/10 text-xs">Sil</button>
-          </div>
-        </div>`;
-      playlistListEl.appendChild(li);
-    });
+function playPrev() {
+  if (audio.currentTime > 3) { audio.currentTime = 0; return; }
+  if (shuffle) {
+    const prev = Math.floor(Math.random() * queue.length);
+    playIndex(prev); return;
   }
+  let prevIndex = currentIndex - 1;
+  if (prevIndex < 0) {
+    if (repeatMode === 'all') prevIndex = queue.length - 1;
+    else { audio.currentTime = 0; return; }
+  }
+  playIndex(prevIndex);
+}
 
-  newPlaylistBtn?.addEventListener('click', async () => {
-    const { isConfirmed, value } = await Swal.fire({
-      title: 'Yeni Playlist',
-      html: `<input id="plName" class="swal2-input" placeholder="Ad">
-             <input id="plCover" class="swal2-input" placeholder="Kapak URL (opsiyonel)">`,
-      preConfirm: () => ({
-        name: document.getElementById('plName').value.trim(),
-        cover: document.getElementById('plCover').value.trim()
-      }),
-      showCancelButton: true,
-      confirmButtonText: 'Oluştur',
-      background:'#12121a', color:'#fff'
-    });
-    if (!isConfirmed) return;
-    if (!value.name) { Swal.fire('Ad boş olamaz'); return; }
-    const pl = { id: crypto.randomUUID(), name: value.name, cover: value.cover || '/icons/icon-512.png', items: [] };
-    playlists.push(pl); save(LS_PLAYLISTS, playlists); renderPlaylists();
-    Swal.fire('Playlist oluşturuldu');
+// Audio events
+audio.addEventListener('loadedmetadata', () => {
+  npDur.textContent = fmt(audio.duration || 0);
+  seek.max = Math.floor(audio.duration || 0);
+});
+audio.addEventListener('timeupdate', () => {
+  npCur.textContent = fmt(audio.currentTime || 0);
+  if (!seekDragging) seek.value = Math.floor(audio.currentTime || 0);
+});
+seek.addEventListener('input', () => {
+  seekDragging = true;
+  npCur.textContent = fmt(+seek.value);
+});
+seek.addEventListener('change', () => {
+  audio.currentTime = +seek.value;
+  seekDragging = false;
+});
+audio.addEventListener('play', () => updateUIPlaying(true));
+audio.addEventListener('pause', () => updateUIPlaying(false));
+audio.addEventListener('ended', () => {
+  if (repeatMode === 'one') {
+    audio.currentTime = 0; audio.play();
+  } else playNext();
+});
+
+// Control wiring
+btnPlay.addEventListener('click', () => {
+  if (audio.paused) audio.play();
+  else audio.pause();
+});
+btnPrev.addEventListener('click', playPrev);
+btnNext.addEventListener('click', playNext);
+btnRew.addEventListener('click', () => audio.currentTime = Math.max(0, audio.currentTime - 10));
+btnFf.addEventListener('click', () => audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10));
+btnRepeat.addEventListener('click', () => {
+  repeatMode = repeatMode === 'off' ? 'all' : repeatMode === 'all' ? 'one' : 'off';
+  btnRepeat.textContent = repeatMode === 'one' ? '⟲1' : repeatMode === 'all' ? '⟲∞' : '⟲';
+});
+btnShuffle.addEventListener('click', () => {
+  shuffle = !shuffle;
+  btnShuffle.classList.toggle('ring-2', shuffle);
+});
+
+// Play/pause via space bar when focused (accessibility)
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+    e.preventDefault(); if (audio.paused) audio.play(); else audio.pause();
+  }
+});
+
+// Rendering library and YouTube search
+function renderLocalTracks(container) {
+  // local tracks are present but per request local play disabled -> show but disable play button visually
+  const list = tracks || [];
+  list.forEach(t => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
+    row.innerHTML = `
+      <div class="flex items-center gap-3 min-w-0">
+        <img src="${t.artwork||'/icons/icon-192.png'}" class="w-12 h-12 rounded-lg object-cover"/>
+        <div class="min-w-0">
+          <div class="font-medium truncate max-w-[220px]">${t.title}</div>
+          <div class="text-xs text-slate-500 dark:text-white/50 truncate max-w-[220px]">${t.artist||''}</div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn disabled-play" title="Local play disabled">⏵</button>
+        <button class="btn addpl" data-id="${t.id}" title="Playlist'e ekle">＋</button>
+      </div>
+    `;
+    container.appendChild(row);
   });
+}
 
-  playlistListEl?.addEventListener('click', async (e) => {
-    const b = e.target.closest('button'); if (!b) return;
-    const id = b.dataset.id; const pl = playlists.find(x=>x.id===id); if(!pl) return;
-
-    if (b.classList.contains('open')) {
-      if (pl.items.length === 0) { Swal.fire('Boş playlist'); return; }
-      // Kuyruğu pl.items -> yt:ID parse ederek kur
-      queue = pl.items
-        .map(code => (typeof code==='string' && code.startsWith('yt:')) ? code.slice(3) : null)
-        .filter(Boolean)
-        .map(vid => ({ videoId: vid, title: vid, author: '', thumbnail: '/icons/icon-192.png' }));
-      startQueueAt(0);
-    }
-
-    if (b.classList.contains('edit')) {
-      const { isConfirmed, value } = await Swal.fire({
-        title:'Playlist Düzenle',
-        html:`<input id="pln" class="swal2-input" value="${pl.name}" placeholder="Ad">
-              <input id="plc" class="swal2-input" value="${pl.cover||''}" placeholder="Kapak URL">`,
-        preConfirm: ()=>({ name: $('#pln').value.trim(), cover: $('#plc').value.trim() }),
-        showCancelButton:true, confirmButtonText:'Kaydet',
-        background:'#12121a', color:'#fff'
-      });
-      if (isConfirmed) {
-        if (value.name) pl.name = value.name;
-        if (value.cover) pl.cover = value.cover;
-        save(LS_PLAYLISTS, playlists); renderPlaylists(); Swal.fire('Güncellendi');
-      }
-    }
-
-    if (b.classList.contains('del')) {
-      const ok = (await Swal.fire({title:'Silinsin mi?', showCancelButton:true, confirmButtonText:'Sil', background:'#12121a', color:'#fff'})).isConfirmed;
-      if (!ok) return;
-      playlists = playlists.filter(x=>x.id!==id); save(LS_PLAYLISTS, playlists); renderPlaylists();
-    }
-
-    if (b.classList.contains('share')) {
-      // #song=VIDEOID yerine playlist paylaşımı (sıkıştırma)
-      const payload = { name: pl.name, items: pl.items, cover: pl.cover||null };
-      const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(payload));
-      const url = `${location.origin}${location.pathname}#pl=${compressed}`;
-      if (navigator.share) {
-        try { await navigator.share({ title:'Playlist', text:pl.name, url }); } catch {}
-      }
-      await Swal.fire({ title:'Paylaşım linki', html:`<input class="swal2-input" value="${url}" readonly>`, background:'#12121a', color:'#fff' });
-    }
+function renderYtResults(container, results) {
+  // results: [{title, author, thumbnail, url, videoId}]
+  results.forEach(t => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
+    row.innerHTML = `
+      <div class="flex items-center gap-3 min-w-0">
+        <img src="${t.thumbnail}" class="w-12 h-12 rounded-lg object-cover"/>
+        <div class="min-w-0">
+          <div class="font-medium truncate max-w-[220px]">${t.title}</div>
+          <div class="text-xs text-slate-500 dark:text-white/50 truncate max-w-[220px]">${t.author||''}</div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn play-yt" data-videoid="${t.videoId}" data-title="${escapeHtmlAttr(t.title)}" data-author="${escapeHtmlAttr(t.author)}" data-thumb="${t.thumbnail}" title="Çal">▶</button>
+        <button class="btn addpl-yt" data-videoid="${t.videoId}" data-title="${escapeHtmlAttr(t.title)}" data-author="${escapeHtmlAttr(t.author)}" data-thumb="${t.thumbnail}" title="Playlist'e ekle">＋</button>
+        <button class="btn cache-yt" data-videoid="${t.videoId}" data-title="${escapeHtmlAttr(t.title)}" data-author="${escapeHtmlAttr(t.author)}" data-thumb="${t.thumbnail}" title="Önbelleğe al">⬇</button>
+      </div>
+    `;
+    container.appendChild(row);
   });
+}
 
-  async function promptAddToPlaylist(videoId) {
+// Escape helper for data attributes
+function escapeHtmlAttr(s) { return String(s||'').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+// Main render
+async function renderLibrary(filter = '') {
+  tracksEl.innerHTML = '';
+  // 1) Local (but play disabled)
+  renderLocalTracks(tracksEl);
+
+  // 2) If search query provided -> YouTube search
+  const q = (filter || '').trim();
+  if (!q) {
+    document.getElementById('noResults')?.classList.remove('hidden');
+    return;
+  }
+  document.getElementById('noResults')?.classList.add('hidden');
+
+  try {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    if (!res.ok) throw new Error('YT search failed');
+    const data = await res.json();
+    const results = (data.results || []).map(r => ({
+      title: r.title,
+      author: r.author,
+      thumbnail: r.thumbnail,
+      url: r.url,
+      videoId: (new URL(r.url)).searchParams.get('v') || r.id || null
+    })).filter(x => x.videoId);
+    if (results.length === 0) {
+      const no = document.createElement('div'); no.className = 'text-sm text-slate-500'; no.textContent = 'YouTube sonuç bulunamadı.';
+      tracksEl.appendChild(no);
+      return;
+    }
+    renderYtResults(tracksEl, results);
+    // Save last search results to ephemeral queue source (so "continue" from search works)
+    lastSearchResults = results;
+  } catch (e) {
+    console.error('YT search error', e);
+    const errDiv = document.createElement('div'); errDiv.className = 'text-sm text-red-500'; errDiv.textContent = 'Arama esnasında hata.';
+    tracksEl.appendChild(errDiv);
+  }
+}
+
+let lastSearchResults = [];
+
+// Search wiring
+searchBtnLocal?.addEventListener('click', () => renderLibrary(searchInput?.value || ''));
+searchInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') renderLibrary(searchInput.value || ''); });
+
+// Click delegation for play/add/cache on results
+tracksEl.addEventListener('click', async (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  // YT play
+  if (btn.classList.contains('play-yt')) {
+    const videoId = btn.dataset.videoid;
+    const title = btn.dataset.title;
+    const author = btn.dataset.author;
+    const thumb = btn.dataset.thumb;
+    // Build queue from lastSearchResults so "continue" uses search order
+    const items = lastSearchResults.map(r => ({ type:'yt', videoId: r.videoId, title: r.title, artist: r.author, artwork: r.thumbnail }));
+    const start = items.findIndex(it => it.videoId === videoId);
+    if (start === -1) {
+      // fallback: single item
+      setQueue([{ type:'yt', videoId, title, artist:author, artwork:thumb }], 0);
+    } else {
+      setQueue(items, start);
+    }
+    return;
+  }
+  // YT add to playlist
+  if (btn.classList.contains('addpl-yt')) {
+    const videoId = btn.dataset.videoid;
+    const title = btn.dataset.title;
+    // convert video item to a unique string id for playlist, e.g. "yt:videoId"
+    const plItemId = `yt:${videoId}`;
+    // show playlist selection
     if (playlists.length === 0) { Swal.fire('Önce playlist oluştur'); return; }
     const options = playlists.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
-    const { isConfirmed, value:plId } = await Swal.fire({
-      title:'Playlist seç',
-      html:`<select id="pl-select" class="swal2-select">${options}</select>`,
-      preConfirm: ()=> $('#pl-select').value,
-      showCancelButton:true, confirmButtonText:'Ekle',
-      background:'#12121a', color:'#fff'
-    });
-    if (!isConfirmed) return;
-    const pl = playlists.find(p=>p.id===plId);
-    if (!pl.items.includes('yt:'+videoId)) pl.items.push('yt:'+videoId);
+    const { value: plId } = await Swal.fire({ title:'Playlist seç', html:`<select id="pl-select" class="swal2-select">${options}</select>`, preConfirm: ()=> document.getElementById('pl-select').value, showCancelButton:true, confirmButtonText:'Ekle' });
+    if (!plId) return;
+    const pl = playlists.find(p=>p.id === plId);
+    if (!pl.items.includes(plItemId)) pl.items.push(plItemId);
     save(LS_PLAYLISTS, playlists); renderPlaylists(); Swal.fire('Eklendi');
+    return;
   }
-
-  // ==== Kuyruk & Çalma ====
-  function startQueueAt(i) {
-    currentIndex = Math.max(0, Math.min(i, queue.length-1));
-    playCurrent();
-    // mini bar görünür
-    miniPlayer?.classList.remove('hidden');
+  // YT cache button
+  if (btn.classList.contains('cache-yt')) {
+    const videoId = btn.dataset.videoid;
+    await cacheYouTubeStream(videoId, { title: btn.dataset.title, artist: btn.dataset.author, artwork: btn.dataset.thumb });
+    return;
   }
-
-  async function playCurrent() {
-    const cur = queue[currentIndex];
-    if (!cur) return;
-
-    // Cache varsa ordan çal, yoksa /stream
-    const url = STREAM(cur.videoId);
-    try {
-      const c = await caches.open(CACHE_NAME);
-      const hit = await c.match(url);
-      if (hit) {
-        const blob = await hit.blob();
-        audio.src = URL.createObjectURL(blob);
-      } else {
-        audio.src = url;
-      }
-      await audio.play().catch(()=>{});
-    } catch (e) {
-      console.error('playCurrent', e);
-      audio.src = url;
-      audio.play().catch(()=>{});
-    }
-
-    // UI güncelle
-    updateNowPlayingUI(cur);
-    updateMediaSession(cur);
-    showNowPlayingNotification(cur);
+  // local playlist add (for disabled local play)
+  if (btn.classList.contains('addpl')) {
+    const id = btn.dataset.id;
+    addToPlaylistDialog(id);
   }
+});
 
-  function updateNowPlayingUI(t) {
-    npTitleMini && (npTitleMini.textContent = t.title || '—');
-    npArtistMini && (npArtistMini.textContent = t.author || '');
-    npArtMini   && (npArtMini.src = t.thumbnail || '/icons/icon-192.png');
-
-    npTitle && (npTitle.textContent = t.title || '—');
-    npArtist && (npArtist.innerHTML = (t.author||'—') + " <span class='text-accent'>• SLP Player</span>");
-    npArt   && (npArt.src = t.thumbnail || '/icons/icon-512.png');
-  }
-
-  // next/prev/seek
-  function idxNext() {
-    if (shuffle) return Math.floor(Math.random()*queue.length);
-    let i = currentIndex + 1;
-    if (i >= queue.length) i = (repeat==='all') ? 0 : queue.length-1;
-    return i;
-  }
-  function idxPrev() {
-    if (shuffle) return Math.floor(Math.random()*queue.length);
-    let i = currentIndex - 1;
-    if (i < 0) i = (repeat==='all') ? queue.length-1 : 0;
-    return i;
-  }
-
-  function playNext(){ currentIndex = idxNext(); playCurrent(); }
-  function playPrev(){ if (audio.currentTime>3){ audio.currentTime=0; return; } currentIndex = idxPrev(); playCurrent(); }
-  function seekBy(sec){ audio.currentTime = Math.max(0, Math.min((audio.duration||0), audio.currentTime + sec)); }
-
-  // Mini & Büyük oynatıcı butonları
-  btnMiniRew?.addEventListener('click', (e)=>{ e.stopPropagation(); seekBy(-10); });
-  btnMiniPrev?.addEventListener('click', (e)=>{ e.stopPropagation(); playPrev(); });
-  btnMiniPlay?.addEventListener('click', (e)=>{ e.stopPropagation(); audio.paused?audio.play():audio.pause(); });
-  btnMiniNext?.addEventListener('click', (e)=>{ e.stopPropagation(); playNext(); });
-  btnMiniFf?.addEventListener('click', (e)=>{ e.stopPropagation(); seekBy(10); });
-
-  btnExpand?.addEventListener('click', (e)=>{ e.stopPropagation(); expandedPanel?.classList.remove('hidden'); });
-  btnClose?.addEventListener('click', ()=> expandedPanel?.classList.add('hidden'));
-  miniPlayer?.addEventListener('click', ()=> expandedPanel?.classList.remove('hidden'));
-
-  btnPlay?.addEventListener('click', ()=> audio.paused?audio.play():audio.pause());
-  btnPrev?.addEventListener('click', playPrev);
-  btnNext?.addEventListener('click', playNext);
-  btnRew ?.addEventListener('click', ()=>seekBy(-10));
-  btnFf  ?.addEventListener('click', ()=>seekBy(10));
-
-  btnRepeat?.addEventListener('click', ()=>{
-    repeat = repeat==='off'?'all': repeat==='all'?'one':'off';
-    btnRepeat.textContent = repeat==='one'?'⟲1': repeat==='all'?'⟲∞':'⟲';
-  });
-  btnShuffle?.addEventListener('click', ()=>{
-    shuffle=!shuffle; btnShuffle.classList.toggle('ring-2', shuffle);
-  });
-
-  // Seek çubuğu (büyük oynatıcı)
-  function syncSeek(){
-    if (!isFinite(audio.duration)) return;
-    const v = Math.floor(audio.currentTime);
-    const d = Math.floor(audio.duration);
-    if (seek) { seek.max = d; seek.value = v; }
-    npCur && (npCur.textContent = fmt(v));
-    npDur && (npDur.textContent = fmt(d));
-  }
-  audio.addEventListener('timeupdate', syncSeek);
-  audio.addEventListener('loadedmetadata', syncSeek);
-  seek?.addEventListener('input', ()=> audio.currentTime = +seek.value);
-
-  audio.addEventListener('play', ()=>{ btnMiniPlay && (btnMiniPlay.textContent='⏸'); btnPlay && (btnPlay.textContent='⏸'); updateMediaSession(queue[currentIndex]); });
-  audio.addEventListener('pause', ()=>{ btnMiniPlay && (btnMiniPlay.textContent='▶');  btnPlay && (btnPlay.textContent='▶');  updateMediaSession(queue[currentIndex]); });
-  audio.addEventListener('ended', ()=>{ if(repeat==='one'){ audio.currentTime=0; audio.play(); } else playNext(); });
-
-  // ==== İndirme / Cache (YouTube) ====
-  async function cacheVideo(videoId, meta={}) {
-    try{
-      const url = STREAM(videoId);
-      const resp = await fetch(url, { headers:{ 'Accept':'audio/*' } });
-      if(!resp.ok) throw new Error('İndirme başarısız: '+resp.status);
-      const c = await caches.open(CACHE_NAME);
-      await c.put(url, resp.clone());
-      Swal.fire({ title:'İndirildi', icon:'success', timer:1500, showConfirmButton:false, background:'#12121a', color:'#fff' });
-      renderDownloads();
-    }catch(e){
-      console.error('cacheVideo', e);
-      Swal.fire({ title:'İndirme hatası', text:e.message, icon:'error', background:'#12121a', color:'#fff' });
-    }
-  }
-
-  async function renderDownloads(){
-    if(!downloadListEl) return;
-    downloadListEl.innerHTML='';
-    const c = await caches.open(CACHE_NAME);
-    const keys = await c.keys();
-    if(keys.length===0){
-      downloadListEl.innerHTML = `<li class="text-sm opacity-70">Önbellek boş</li>`;
-      return;
-    }
-    for(const req of keys){
-      const url = req.url.replace(location.origin,'');
-      const vid = url.split('/').pop();
-      const li = document.createElement('li');
-      li.className='flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
-      li.innerHTML = `
-        <div class="truncate">YT: ${vid}</div>
-        <div class="flex gap-2">
-          <button data-vid="${vid}" class="play px-3 py-1.5 rounded-full bg-accent text-white">Çal</button>
-          <button data-url="${url}" class="rm px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10">Sil</button>
-        </div>`;
-      downloadListEl.appendChild(li);
-    }
-  }
-
-  downloadListEl?.addEventListener('click', async (e)=>{
-    const b = e.target.closest('button'); if(!b) return;
-    if (b.classList.contains('play')) {
-      const vid = b.dataset.vid;
-      queue = [{ videoId: vid, title: `YT:${vid}`, author:'', thumbnail:'/icons/icon-192.png' }];
-      startQueueAt(0);
-    }
-    if (b.classList.contains('rm')) {
-      const url=b.dataset.url;
-      const c=await caches.open(CACHE_NAME);
-      await c.delete(url);
-      renderDownloads();
-    }
-  });
-
-  // ==== Paylaşım (tek şarkı) ====
-  function shareSong(videoId){
-    const url = `${location.origin}${location.pathname}#song=${encodeURIComponent(videoId)}`;
-    if (navigator.share) navigator.share({ title:'Şarkı', url }).catch(()=>{});
-    else { navigator.clipboard?.writeText(url); Swal.fire('Kopyalandı'); }
-  }
-
-  // Hash ile doğrudan şarkı oynat (#song=ID)
-  function importFromHash(){
-    // playlist import (#pl=...)
-    const pm = location.hash.match(/#pl=([^&]+)/);
-    if (pm) {
-      try{
-        const json = LZString.decompressFromEncodedURIComponent(pm[1]);
-        const payload = JSON.parse(json);
-        const newPl = {
-          id: crypto.randomUUID(),
-          name: payload.name || 'Paylaşılan',
-          cover: payload.cover || null,
-          items: Array.isArray(payload.items) ? payload.items : []
-        };
-        playlists.push(newPl); save(LS_PLAYLISTS, playlists); renderPlaylists();
-        Swal.fire({ title:'Playlist içe aktarıldı', timer:1500, showConfirmButton:false, background:'#12121a', color:'#fff' });
-        history.replaceState(null, '', location.pathname + location.search);
-      }catch(e){ console.error(e); }
-      return;
-    }
-
-    const m = location.hash.match(/#song=([^&]+)/);
-    if(!m) return;
-    const vid = decodeURIComponent(m[1]);
-    queue = [{ videoId: vid, title:`YT:${vid}`, author:'', thumbnail:'/icons/icon-192.png' }];
-    startQueueAt(0);
-  }
-
-  // ==== Media Session + Bildirim ====
-  function updateMediaSession(t){
-    if(!('mediaSession' in navigator) || !t) return;
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: t.title || '',
-      artist: t.author || '',
-      album: 'SLP Player',
-      artwork: [{ src: t.thumbnail || '/icons/icon-512.png', sizes:'512x512', type:'image/png' }]
-    });
-
-    try{
-      navigator.mediaSession.setActionHandler('play', ()=>audio.play());
-      navigator.mediaSession.setActionHandler('pause', ()=>audio.pause());
-      navigator.mediaSession.setActionHandler('seekforward', ()=>seekBy(10));
-      navigator.mediaSession.setActionHandler('seekbackward', ()=>seekBy(-10));
-      navigator.mediaSession.setActionHandler('previoustrack', playPrev);
-      navigator.mediaSession.setActionHandler('nexttrack', playNext);
-      navigator.mediaSession.setActionHandler('seekto', (d)=>{ if(d.fastSeek && 'fastSeek' in audio) audio.fastSeek(d.seekTime); else audio.currentTime=d.seekTime; });
-    }catch{}
-  }
-
-  async function showNowPlayingNotification(t){
-    try{
-      if(!('serviceWorker' in navigator) || Notification.permission!=='granted') return;
-      const reg = await navigator.serviceWorker.getRegistration(); if(!reg) return;
-      await reg.showNotification('Çalınıyor: '+(t.title||''), {
-        body: (t.author||'Bilinmiyor') + ' — SLP Player',
-        icon: t.thumbnail || '/icons/icon-192.png',
-        badge: '/icons/icon-192.png',
-        tag: 'now-playing', renotify:true, requireInteraction:false,
-        actions: [
-          { action:'prev', title:'⏮' },
-          { action:'rew', title:'-10s' },
-          { action:'toggle', title: audio.paused?'▶':'⏸' },
-          { action:'ff', title:'+10s' },
-          { action:'next', title:'⏭' }
-        ]
-      });
-    }catch{}
-  }
-
-  navigator.serviceWorker?.addEventListener('message', (e)=>{
-    const { type } = e.data||{}; if(!type) return;
-    if(type==='prev') playPrev();
-    if(type==='rew') seekBy(-10);
-    if(type==='ff') seekBy(10);
-    if(type==='toggle'){ audio.paused?audio.play():audio.pause(); }
-    if(type==='next') playNext();
-  });
-
-  // ==== Offline davranışı ====
-  window.addEventListener('online',  ()=>{ /* istersen otomatik arama tetikle */ });
-  window.addEventListener('offline', ()=>{ /* offline banner vs. */ });
-
-  // İnternet yoksa sadece indirileni göster
-  async function enforceOfflineModeIfNeeded(){
-    if (navigator.onLine) return;
-    showView('lib');
-    // Library alanını cache listesi gibi kullan
-    if (tracksEl) {
-      tracksEl.innerHTML = `<div class="text-sm opacity-70 mb-2">Çevrimdışı: yalnızca indirilenler</div>`;
-    }
-    await renderDownloads();
-  }
-
-  // ==== Başlangıç ====
-  (async function boot(){
-    renderPlaylists();
+// Caching function for YT streams: fetch /stream/:id and store in Cache API
+async function cacheYouTubeStream(videoId, meta = {}) {
+  try {
+    const cache = await caches.open('yt-audio-v1');
+    const streamUrl = `/stream/${videoId}`; // server should return proxied stream (Range supported)
+    const resp = await fetch(streamUrl);
+    if (!resp.ok) throw new Error('Stream fetch failed: ' + resp.status);
+    // store clone in cache
+    await cache.put(streamUrl, resp.clone());
+    Swal.fire('YT Cache tamam');
     renderDownloads();
-    importFromHash();
-    await enforceOfflineModeIfNeeded();
-  })();
+  } catch (e) {
+    console.error('cache error', e);
+    Swal.fire('YT Cache hatası: ' + (e.message || ''));
+  }
+}
 
+// Downloads view - show cached entries
+async function renderDownloads() {
+  if (!downloadListEl) return;
+  downloadListEl.innerHTML = '';
+  const c = await caches.open('yt-audio-v1');
+  const keys = await c.keys();
+  if (keys.length === 0) {
+    downloadListEl.innerHTML = '<div class="text-sm text-slate-500">Önbellek boş</div>';
+    return;
+  }
+  for (const req of keys) {
+    const url = req.url.replace(location.origin, '');
+    const li = document.createElement('li');
+    li.className = 'flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
+    const name = url.startsWith('/stream/') ? url.split('/').pop() : url;
+    li.innerHTML = `<div class="truncate">${name}</div>
+      <div class="flex gap-2">
+        <button data-url="${url}" class="play cached-play">Çal</button>
+        <button data-url="${url}" class="rm cached-del">Sil</button>
+      </div>`;
+    downloadListEl.appendChild(li);
+  }
+}
+
+// Downloads click handling
+downloadListEl.addEventListener('click', async (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  const url = b.dataset.url;
+  const c = await caches.open('yt-audio-v1');
+  if (b.classList.contains('cached-play')) {
+    const hit = await c.match(url);
+    if (hit) {
+      const blob = await hit.blob();
+      audio.src = URL.createObjectURL(blob);
+      audio.play();
+    }
+  } else if (b.classList.contains('cached-del')) {
+    await c.delete(url);
+    renderDownloads();
+  }
+});
+
+// Playlist rendering & CRUD
+function renderPlaylists() {
+  playlistListEl.innerHTML = '';
+  playlists.forEach(pl => {
+    const li = document.createElement('li');
+    li.className = 'group relative rounded-xl overflow-hidden bg-black/5 dark:bg-white/10 p-2 mb-2 flex items-center justify-between';
+    li.innerHTML = `
+      <div class="flex items-center gap-3 min-w-0">
+        <img src="${pl.cover || '/icons/icon-512.png'}" class="w-12 h-12 rounded-lg object-cover"/>
+        <div class="min-w-0">
+          <div class="font-medium truncate max-w-[180px]">${pl.name}</div>
+          <div class="text-xs text-slate-500">${pl.items.length} parça</div>
+        </div>
+      </div>
+      <div class="flex gap-1">
+        <button data-id="${pl.id}" class="open pl-open px-2 py-1 rounded-full bg-accent text-white text-xs">Çal</button>
+        <button data-id="${pl.id}" class="share pl-share px-2 py-1 rounded-full bg-white/10 text-xs">Paylaş</button>
+        <button data-id="${pl.id}" class="edit pl-edit px-2 py-1 rounded-full bg-white/10 text-xs">Düzenle</button>
+        <button data-id="${pl.id}" class="del pl-del px-2 py-1 rounded-full bg-white/10 text-xs">Sil</button>
+      </div>
+    `;
+    playlistListEl.appendChild(li);
+  });
+}
+playlistListEl.addEventListener('click', async (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  const id = b.dataset.id; const pl = playlists.find(x => x.id === id); if (!pl) return;
+  if (b.classList.contains('pl-open')) {
+    // Build queue: items are stored as "yt:VIDEOID" or local ids
+    const ids = pl.items.map(it => {
+      if (typeof it === 'string' && it.startsWith('yt:')) {
+        const vid = it.split(':')[1];
+        return { type:'yt', videoId: vid, title: vid, artist: '' };
+      } else {
+        // local
+        const t = tracks.find(tt => tt.id === it);
+        return t ? { type:'local', url: t.url, title: t.title, artist: t.artist, artwork: t.artwork } : null;
+      }
+    }).filter(Boolean);
+    if (ids.length === 0) { Swal.fire('Boş playlist'); return; }
+    // Per requirement, local tracks are disabled from playback; filter only yt or cached items
+    const filtered = ids.filter(i => i.type === 'yt');
+    if (filtered.length === 0) { Swal.fire('Bu çalma listesinde oynatılabilir YouTube parçası yok'); return; }
+    setQueue(filtered, 0);
+  } else if (b.classList.contains('pl-edit')) {
+    // simple edit name + cover
+    const { value } = await Swal.fire({
+      title: 'Playlist Düzenle',
+      html: `<input id="pln" class="swal2-input" placeholder="Ad" value="${pl.name}"><input id="plc" type="file" accept="image/*" class="swal2-file">`,
+      preConfirm: () => ({ name: document.getElementById('pln').value.trim(), file: document.getElementById('plc').files[0] || null }),
+      showCancelButton: true, confirmButtonText: 'Kaydet'
+    });
+    if (!value) return;
+    if (value.name) pl.name = value.name;
+    if (value.file) {
+      const reader = new FileReader();
+      reader.onload = () => { pl.cover = reader.result; save(LS_PLAYLISTS, playlists); renderPlaylists(); Swal.fire('Güncellendi'); };
+      reader.readAsDataURL(value.file);
+    } else {
+      save(LS_PLAYLISTS, playlists); renderPlaylists(); Swal.fire('Güncellendi');
+    }
+  } else if (b.classList.contains('pl-del')) {
+    const ok = (await Swal.fire({ title: 'Silinsin mi?', showCancelButton:true, confirmButtonText:'Sil' })).isConfirmed;
+    if (!ok) return;
+    playlists = playlists.filter(x => x.id !== id);
+    save(LS_PLAYLISTS, playlists); renderPlaylists();
+  } else if (b.classList.contains('pl-share')) {
+    sharePlaylist(pl);
+  }
+});
+
+// Share playlist via compressed URL
+function sharePlaylist(pl) {
+  const payload = { name: pl.name, items: pl.items, cover: pl.cover || null };
+  const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(payload));
+  const url = `${location.origin}${location.pathname}#pl=${compressed}`;
+  if (navigator.share) navigator.share({ title: pl.name, text: 'Playlist', url }).catch(() => {});
+  Swal.fire({ title: 'Paylaşım linki', html: `<input class="swal2-input" value="${url}" readonly>` });
+}
+
+// import from hash
+(function importFromHash(){
+  const m = location.hash.match(/#pl=([^&]+)/);
+  if (!m) return;
+  try {
+    const json = LZString.decompressFromEncodedURIComponent(m[1]);
+    if (!json) throw new Error('invalid');
+    const payload = JSON.parse(json);
+    const newPl = { id: crypto.randomUUID(), name: payload.name || 'Paylaşılan', cover: payload.cover || null, items: Array.isArray(payload.items) ? payload.items : [] };
+    playlists.push(newPl); save(LS_PLAYLISTS, playlists); renderPlaylists(); Swal.fire('Playlist içe aktarıldı');
+    history.replaceState(null, '', location.pathname + location.search);
+  } catch (e) {
+    console.error(e); Swal.fire('Playlist yüklenemedi');
+  }
 })();
+
+// Add to playlist dialog (for local items)
+async function addToPlaylistDialog(itemId) {
+  if (playlists.length === 0) { Swal.fire('Önce playlist oluştur'); return; }
+  const options = playlists.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  const { value: plId } = await Swal.fire({ title:'Playlist seç', html:`<select id="pl-select" class="swal2-select">${options}</select>`, preConfirm: ()=> document.getElementById('pl-select').value, showCancelButton:true, confirmButtonText:'Ekle' });
+  if (!plId) return;
+  const pl = playlists.find(p => p.id === plId);
+  if (!pl.items.includes(itemId)) pl.items.push(itemId);
+  save(LS_PLAYLISTS, playlists);
+  renderPlaylists();
+  Swal.fire('Eklendi');
+}
+
+// Escaping function for safety (small helper used above)
+function decodeHTMLEntities(text) {
+  const txt = document.createElement('textarea');
+  txt.innerHTML = text;
+  return txt.value;
+}
+
+// Service Worker messaging: react to notification actions forwarded from SW
+navigator.serviceWorker?.addEventListener('message', (e) => {
+  const { type } = e.data || {};
+  if (!type) return;
+  if (type === 'prev') playPrev();
+  if (type === 'rew') audio.currentTime = Math.max(0, audio.currentTime - 10);
+  if (type === 'ff') audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10);
+  if (type === 'toggle') { if (audio.paused) audio.play(); else audio.pause(); }
+  if (type === 'next') playNext();
+});
+
+// initial render
+renderPlaylists();
+renderDownloads();
+renderLibrary(''); // empty initially
+
+// Request notification permission if not granted, but do not spam
+if ('Notification' in window && Notification.permission === 'default') {
+  // don't auto prompt; provide button in UI
+}
+
+// Expose for console debugging (optional)
+window.SLP = {
+  setQueue, playNext, playPrev, cacheYouTubeStream, renderLibrary, renderPlaylists, renderDownloads
+};
