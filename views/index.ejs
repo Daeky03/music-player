@@ -1,26 +1,30 @@
-<!-- index.ejs — main content area (renders inside layout) -->
+<!-- index.ejs — Lark-style content -->
 <div class="space-y-4">
-  <!-- Library view -->
-  <div id="view-library" class="rounded-xl p-4 bg-white/60 dark:bg-panel/60">
-    <h2 class="text-lg font-semibold mb-3">Arama Sonuçları</h2>
+  <!-- search + quick results -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div class="rounded-xl p-3 bg-white/70 dark:bg-white/3">
+      <h3 class="text-sm font-semibold mb-2">Arama</h3>
+      <div class="flex gap-2">
+        <input id="searchInput" placeholder="Şarkı, sanatçı veya YouTube linki" class="flex-1 rounded-lg px-3 py-2 bg-white/60 dark:bg-bgsoft/60 outline-none"/>
+        <button id="searchBtnLocal" class="px-4 py-2 rounded-lg bg-accent text-white">Ara</button>
+      </div>
+      <p class="text-xs text-slate-500 dark:text-white/50 mt-2">YouTube sonuçları ve önbelleğe alma destekli çalma.</p>
+    </div>
 
-    <!-- results container -->
-    <div id="tracks" class="grid gap-3 sm:grid-cols-1 md:grid-cols-1"></div>
-
-    <div id="noResults" class="hidden text-sm text-gray-500 mt-3">
-      Arama yapın — YouTube'dan sonuçlar burada görünecek.
+    <div class="rounded-xl p-3 bg-white/70 dark:bg-white/3">
+      <h3 class="text-sm font-semibold mb-2">Hızlı Erişim</h3>
+      <div class="flex gap-2 flex-wrap">
+        <button class="px-3 py-2 rounded-lg bg-white/10">Popüler</button>
+        <button class="px-3 py-2 rounded-lg bg-white/10">Yeni</button>
+        <button class="px-3 py-2 rounded-lg bg-white/10">Kütüphane</button>
+      </div>
     </div>
   </div>
 
-  <!-- Playlists -->
-  <div id="view-playlists" class="rounded-xl p-4 bg-white/60 dark:bg-panel/60 hidden">
-    <h2 class="text-lg font-semibold mb-3">Çalma Listeleri</h2>
-    <ul id="playlistList" class="grid gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3"></ul>
-  </div>
-
-  <!-- Downloads -->
-  <div id="view-downloaded" class="rounded-xl p-4 bg-white/60 dark:bg-panel/60 hidden">
-    <h2 class="text-lg font-semibold mb-3">İndirilenler (Offline)</h2>
-    <ul id="downloadList" class="space-y-2"></ul>
+  <!-- Results list -->
+  <div class="rounded-xl p-3 bg-white/70 dark:bg-white/3">
+    <h3 class="text-sm font-semibold mb-3">Arama Sonuçları</h3>
+    <div id="tracks" class="grid gap-3"></div>
+    <div id="noResults" class="text-sm text-slate-500 hidden mt-2">Sonuç yok — birşeyler ara.</div>
   </div>
 </div>
