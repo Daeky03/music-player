@@ -409,9 +409,11 @@ async function showNowPlayingNotification(t){
     const obj = JSON.parse(LZString.decompressFromEncodedURIComponent(m[1])||'{}');
     if(obj.id){
       // tek şarkılık kuyruk
+      const result = await fetch(`/info/${obj.id}`);
+      const data = await result.json();
       queue=[obj.id]; currentIndex=0;
       // minimal meta yoksa başlık id olur; arama sonrası zaten dolacak
-      if(!trackMetaCache[obj.id]) trackMetaCache[obj.id] = { id:obj.id, title:obj.id, artist:'', artwork:'/icons/icon-192.png' };
+      if(!trackMetaCache[obj.id]) trackMetaCache[obj.id] = { id:obj.id, title:data.title, artist:data.channel.name, artwork:data.thumnail[0].url };
       playByIndex(0);
     }
   }catch{}
