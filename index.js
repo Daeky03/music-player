@@ -127,69 +127,7 @@ app.get('/stream/:videoId', async (req, res) => {
     await pipe(stream, res);
     // Header ayarı
        // Streami gönderiyoruz
-    const video = videoInfo.streaming_data.adaptive_formats[0];
-
-
-
-
-async function getPlayerJsUrl(html) {
-    const regex = /"jsUrl":"([^"]+)"/;
-    const match = html.match(regex);
-    if (!match) throw new Error("Player.js URL bulunamadı");
-    return "https://www.youtube.com" + match[1];
-}
-
-
-    
-    
-    
-
-
-function decryptFormats(formats, decipher) {
-    return formats.map(f => {
-        if (f.signatureCipher) {
-            const params = qs.parse(f.signatureCipher);
-            const sig = decipher(params.s);
-            f.url = params.url + "&sig=" + sig;
-            delete f.signatureCipher;
-        }
-        return f;
-    });
-}
-
-const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-        headers: {
-            'Cookie': cookies,
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9'
-        }
-    });
-    const html = await response.text();
-
-      const playerJsUrl = await getPlayerJsUrl(html);
-console.log(playerJsUrl);
-    const res = await fetch(playerJsUrl);
-    const js = await res.text();
-console.log(js.slice(0, 50))
-    // s parametresini çözen fonksiyonu regex ile bul
-const decipherScript = extractDecipherFunc(js);
-
-  const sandbox = {};
-  vm.createContext(sandbox);
-  vm.runInContext(decipherScript, sandbox);
-    
-    const params = new URLSearchParams(video.signature_cipher);
-
-const s = params.get("s");   // <-- burası işine yarayacak
-const sp = params.get("sp");
-const url = params.get("url");
-      const result = sandbox.DisTubeDecipherFunc(s);
-  console.log("Decrypted:", result);
-    // URL'leri çöz
-    
-
-        
-
+ 
       
     
   } catch (err) {
