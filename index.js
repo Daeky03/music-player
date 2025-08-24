@@ -111,7 +111,7 @@ app.get('/stream/:videoId', async (req, res) => {
     const videoId = req.params.videoId;
 
     // Audio stream alıyoruz
-    const videoInfo = await yt.getInfo(videoId, { client: 'YTMUSIC' });
+    const videoInfo = await yt.getInfo(videoId, { client: 'WEB' });
 
       console.log(videoInfo);
 
@@ -119,7 +119,7 @@ app.get('/stream/:videoId', async (req, res) => {
       type: 'audio', // audio, video or video+audio
       quality: 'best', // best, bestefficiency, 144p, 240p, 480p, 720p and so on.
       format: 'mp4', // media container format,
-          client: 'YTMUSIC'
+          client: 'WEB'
     });
 
     
