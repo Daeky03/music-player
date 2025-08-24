@@ -88,8 +88,8 @@ async function playByIndex(i){
   audio.play();
 
   // UI update
-  mini.title.textContent = t.title; mini.artist.textContent = t.artist||''; mini.art.src = t.thumbnail||'/icons/icon-192.png';
-  xp.title.textContent = t.title; xp.artist.innerHTML = (t.artist||'—')+" <span class='text-accent'>• SLP Player</span>"; xp.art.src = t.thumbnail||'/icons/icon-512.png';
+  mini.title.textContent = t.title; mini.artist.textContent = t.artist||''; mini.art.src = t.artwork||'/icons/icon-192.png';
+  xp.title.textContent = t.title; xp.artist.innerHTML = (t.artist||'—')+" <span class='text-accent'>• SLP Player</span>"; xp.art.src = t.artwork||'/icons/icon-512.png';
 
   updateMediaSession(t);
   showNowPlayingNotification(t);
@@ -190,7 +190,7 @@ async function showNowPlayingNotification(t){
   if(!reg) return;
   reg.showNotification('Çalınıyor: '+t.title, {
     body: (t.artist||'Bilinmiyor')+' — SLP Player',
-    icon: t.thumbnail,
+    icon: t.artwork,
     badge: '/icons/icon-192.png',
     tag:'now-playing',
     renotify:true
@@ -216,4 +216,3 @@ audio.addEventListener('ended', ()=>{ if(repeat==='one'){ audio.currentTime=0; a
 
 // 🔹 Initial
 renderLibrary();
-  
