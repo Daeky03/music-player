@@ -17,6 +17,8 @@
   "axios": "^1.6.0",
     "cors": "^2.8.5",
   "youtubei.js": "15.0.1",
-  "@distube/ytdl-core": "4.16.12"
+  "@distube/ytdl-core": "4.16.12",
+  "node-fetch": "^3.4.0",
+    "querystring": "^0.2.1"
 }
 }
