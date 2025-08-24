@@ -287,7 +287,7 @@ tracksEl.addEventListener('click', async (e) => {
     if (btn.classList.contains('play')) {
       // API üzerinden stream linki al
       try {
-        const params = new URL(encodeURIComponent(url)).searchParams;
+        const params = new URL(url).searchParams;
   const videoId = params.get("v");
         
       
