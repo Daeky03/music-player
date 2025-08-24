@@ -123,11 +123,11 @@ app.get('/stream/:videoId', async (req, res) => {
           client: 'YTMUSIC'
     });
 
-    res.setHeader('Content-Type', 'audio/opus');
-    res.setHeader('Content-Disposition', `attachment; filename="${videoId}.opus"`);
-
+    console.log(stream)
     // Streami direkt olarak yanıtla
-   stream.pipe(res);
+   res.setHeader('Content-Type', 'audio/opus');
+    res.setHeader('Content-Disposition', `attachment; filename="${videoId}.opus"`);
+    res.send(stream);
     // Header ayarı
        // Streami gönderiyoruz
 
