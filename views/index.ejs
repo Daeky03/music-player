@@ -1,33 +1,41 @@
-<div class="grid md:grid-cols-[260px,1fr] gap-4">
-  <aside class="rounded-xl2 p-3 bg-white/80 dark:bg-panel/80 shadow-glass">
-    <div class="mb-3">
-      <input id="search" placeholder="Ara: şarkı, sanatçı, albüm" class="w-full px-3 py-2 rounded-lg bg-black/5 dark:bg-white/10 outline-none" />
-    </div>
-    <nav class="space-y-2 text-sm">
-      <button id="tab-library" class="w-full text-left px-3 py-2 rounded-lg bg-black/5 dark:bg-white/10">Kütüphane</button>
-      <button id="tab-playlists" class="w-full text-left px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10">Çalma Listeleri</button>
-      <button id="tab-downloaded" class="w-full text-left px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10">İndirilenler</button>
-    </nav>
-    <div class="mt-4 space-y-2">
-      <button id="newPlaylistBtn" class="w-full px-3 py-2 rounded-full bg-accent text-white hover:bg-accent2">Yeni Playlist</button>
-      <button id="notifyPermBtn" class="w-full px-3 py-2 rounded-full bg-black/5 dark:bg-white/10">Bildirim izni</button>
-    </div>
-  </aside>
+<!-- Ana sayfa -->
+<section id="view-home" class="space-y-4">
+  <!-- Kategoriler (6 kutu, renkli) -->
+  <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+    <div class="rounded-xl p-4 bg-gradient-to-br from-purple-500 to-fuchsia-600 text-white">Trend</div>
+    <div class="rounded-xl p-4 bg-gradient-to-br from-rose-500 to-orange-500 text-white">Yeni</div>
+    <div class="rounded-xl p-4 bg-gradient-to-br from-cyan-500 to-blue-600 text-white">Pop</div>
+    <div class="rounded-xl p-4 bg-gradient-to-br from-emerald-500 to-teal-600 text-white">Lo-fi</div>
+    <div class="rounded-xl p-4 bg-gradient-to-br from-indigo-500 to-purple-700 text-white">EDM</div>
+    <div class="rounded-xl p-4 bg-gradient-to-br from-amber-500 to-pink-600 text-white">Mix</div>
+  </div>
 
-  <section class="space-y-4">
-    <div id="view-library" class="rounded-xl2 p-3 bg-white/80 dark:bg-panel/80 shadow-glass">
-      <h2 class="text-lg font-semibold mb-3">Kütüphane</h2>
-      <div id="tracks" class="grid gap-2"></div>
+  <!-- Playlist grid (dikdörtgen, sol kapak sağ ad) -->
+  <div>
+    <h2 class="text-lg font-semibold mb-2">Çalma Listelerin</h2>
+    <div id="playlistGrid" class="grid gap-3">
+      <!-- JS dolduracak -->
     </div>
+  </div>
+</section>
 
-    <div id="view-playlists" class="rounded-xl2 p-3 bg-white/80 dark:bg-panel/80 shadow-glass hidden">
-      <h2 class="text-lg font-semibold mb-3">Çalma Listeleri</h2>
-      <ul id="playlistList" class="space-y-2"></ul>
-    </div>
+<!-- Arama -->
+<section id="view-search" class="hidden space-y-4">
+  <div class="flex gap-2">
+    <input id="search" placeholder="Ara: şarkı / sanatçı" class="flex-1 px-3 py-2 rounded-lg bg-black/5 dark:bg-white/10 outline-none"/>
+    <button id="btnDoSearch" class="pill bg-accent text-white">Ara</button>
+  </div>
+  <div id="searchResults" class="space-y-2"></div>
+</section>
 
-    <div id="view-downloaded" class="rounded-xl2 p-3 bg-white/80 dark:bg-panel/80 shadow-glass hidden">
-      <h2 class="text-lg font-semibold mb-3">İndirilenler (Offline)</h2>
-      <ul id="downloadList" class="space-y-2"></ul>
+<!-- Oluştur -->
+<section id="view-create" class="hidden space-y-4">
+  <div class="rounded-xl p-4 bg-white/80 dark:bg-panel/80 shadow-glass">
+    <h2 class="text-lg font-semibold mb-3">Yeni Playlist Oluştur</h2>
+    <div class="flex flex-col sm:flex-row gap-2">
+      <input id="plName" class="flex-1 px-3 py-2 rounded-lg bg-black/5 dark:bg-white/10 outline-none" placeholder="Ad" />
+      <input id="plCoverUrl" class="flex-1 px-3 py-2 rounded-lg bg-black/5 dark:bg-white/10 outline-none" placeholder="Kapak (URL - YouTube thumb olabilir)" />
+      <button id="createPlaylist" class="pill bg-accent text-white">Oluştur</button>
     </div>
-  </section>
-</div>
+  </div>
+</section>
