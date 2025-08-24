@@ -124,11 +124,10 @@ app.get('/stream/:videoId', async (req, res) => {
     });
 
     res.setHeader('Content-Type', 'audio/mp4');
-    res.setHeader('Content-Disposition', `attachment; filename="${videoId}.mp4"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${videoId}.m4a"`);
 
     // Streami direkt olarak yanıtla
-  const audioStream = bufferToStream(stream);
-    audioStream.pipe(res);
+    stream.pipe(res);
     // Header ayarı
        // Streami gönderiyoruz
  
