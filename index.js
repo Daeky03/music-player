@@ -40,7 +40,8 @@ function extractDecipherFunc(jsCode) {
   if (!helperMatch) throw new Error("Helper not found");
   const helperObject = helperMatch[0];
 
-  const funcMatch = jsCode.match(DECIPHER_REGEXP);
+  const funcMatch = jsCode.match(\b[a-zA-Z0-9$]{2}\s*=\s*function\(a\)\{a=a\.split\(""\);.*?return a\.join\(""\)\}
+);
   if (!funcMatch) throw new Error("Decipher function not found");
 
   const decipherFunc = funcMatch[0];
