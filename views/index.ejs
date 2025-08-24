@@ -1,41 +1,74 @@
-<!-- Ana sayfa -->
-<section id="view-home" class="space-y-4">
-  <!-- Kategoriler (6 kutu, renkli) -->
-  <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-    <div class="rounded-xl p-4 bg-gradient-to-br from-purple-500 to-fuchsia-600 text-white">Trend</div>
-    <div class="rounded-xl p-4 bg-gradient-to-br from-rose-500 to-orange-500 text-white">Yeni</div>
-    <div class="rounded-xl p-4 bg-gradient-to-br from-cyan-500 to-blue-600 text-white">Pop</div>
-    <div class="rounded-xl p-4 bg-gradient-to-br from-emerald-500 to-teal-600 text-white">Lo-fi</div>
-    <div class="rounded-xl p-4 bg-gradient-to-br from-indigo-500 to-purple-700 text-white">EDM</div>
-    <div class="rounded-xl p-4 bg-gradient-to-br from-amber-500 to-pink-600 text-white">Mix</div>
-  </div>
+<!-- Navbar -->
+<div class="flex items-center justify-between p-3 border-b border-gray-800">
+  <h1 class="font-bold text-xl">SLP Player</h1>
+  <button id="themeToggle" class="pill bg-purple-600">Koyu</button>
+</div>
 
-  <!-- Playlist grid (dikdörtgen, sol kapak sağ ad) -->
-  <div>
-    <h2 class="text-lg font-semibold mb-2">Çalma Listelerin</h2>
-    <div id="playlistGrid" class="grid gap-3">
-      <!-- JS dolduracak -->
-    </div>
-  </div>
-</section>
+<!-- Tabs -->
+<div class="flex gap-2 p-2">
+  <button id="tab-home" class="pill bg-purple-700">Ana Sayfa</button>
+  <button id="tab-search" class="pill bg-purple-700">Ara</button>
+  <button id="tab-create" class="pill bg-purple-700">Oluştur</button>
+</div>
 
-<!-- Arama -->
-<section id="view-search" class="hidden space-y-4">
-  <div class="flex gap-2">
-    <input id="search" placeholder="Ara: şarkı / sanatçı" class="flex-1 px-3 py-2 rounded-lg bg-black/5 dark:bg-white/10 outline-none"/>
-    <button id="btnDoSearch" class="pill bg-accent text-white">Ara</button>
+<!-- Views -->
+<div id="view-home" class="p-3">
+  <div id="playlistGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
+</div>
+
+<div id="view-search" class="p-3 hidden">
+  <div class="flex gap-2 mb-3">
+    <input id="search" placeholder="Ara..." class="flex-1 p-2 rounded-xl bg-gray-800"/>
+    <button id="btnDoSearch" class="pill bg-purple-700">Ara</button>
   </div>
   <div id="searchResults" class="space-y-2"></div>
-</section>
+</div>
 
-<!-- Oluştur -->
-<section id="view-create" class="hidden space-y-4">
-  <div class="rounded-xl p-4 bg-white/80 dark:bg-panel/80 shadow-glass">
-    <h2 class="text-lg font-semibold mb-3">Yeni Playlist Oluştur</h2>
-    <div class="flex flex-col sm:flex-row gap-2">
-      <input id="plName" class="flex-1 px-3 py-2 rounded-lg bg-black/5 dark:bg-white/10 outline-none" placeholder="Ad" />
-      <input id="plCoverUrl" class="flex-1 px-3 py-2 rounded-lg bg-black/5 dark:bg-white/10 outline-none" placeholder="Kapak (URL - YouTube thumb olabilir)" />
-      <button id="createPlaylist" class="pill bg-accent text-white">Oluştur</button>
+<div id="view-create" class="p-3 hidden">
+  <input id="plName" placeholder="Playlist Adı" class="w-full p-2 rounded-xl bg-gray-800 mb-2"/>
+  <input id="plCoverUrl" placeholder="Kapak URL" class="w-full p-2 rounded-xl bg-gray-800 mb-2"/>
+  <button id="createPlaylist" class="pill bg-purple-700 w-full">Oluştur</button>
+</div>
+
+<!-- Mini Player -->
+<div id="miniPlayer" class="fixed bottom-0 left-0 right-0 bg-gray-900/90 flex items-center justify-between p-2 px-4 hidden">
+  <div class="flex items-center gap-2">
+    <img id="npArtMini" class="w-12 h-12 rounded-lg"/>
+    <div>
+      <div id="npTitleMini" class="cut font-medium"></div>
+      <div id="npArtistMini" class="text-xs text-gray-400 cut"></div>
     </div>
   </div>
-</section>
+  <div class="flex items-center gap-2">
+    <button id="btnMiniPlay" class="pill bg-purple-600">▶</button>
+    <button id="btnMiniAdd" class="pill bg-purple-600">+</button>
+    <button id="btnMiniMore" class="pill bg-purple-600">⋯</button>
+  </div>
+</div>
+
+<!-- Expanded Player -->
+<div id="expandedPlayer" class="fixed inset-0 bg-[#1e1b2c] hidden flex flex-col items-center p-4">
+  <img id="npArt" class="w-48 h-48 rounded-lg mb-4"/>
+  <div id="npTitle" class="text-xl font-semibold cut"></div>
+  <div id="npArtist" class="text-gray-400 text-sm mb-4 cut"></div>
+
+  <input type="range" id="seek" class="w-full mb-2"/>
+  <div class="flex justify-between w-full text-xs mb-4">
+    <span id="npCur">0:00</span>
+    <span id="npDur">0:00</span>
+  </div>
+
+  <div class="flex gap-3 mb-4 flex-wrap justify-center">
+    <button id="btnShuffle" class="pill bg-purple-600">🔀</button>
+    <button id="btnRew" class="pill bg-purple-600">⏪</button>
+    <button id="btnPrev" class="pill bg-purple-600">⏮</button>
+    <button id="btnPlay" class="pill bg-purple-600">▶</button>
+    <button id="btnNext" class="pill bg-purple-600">⏭</button>
+    <button id="btnFf" class="pill bg-purple-600">⏩</button>
+    <button id="btnRepeat" class="pill bg-purple-600">⟲</button>
+    <button id="btnCache" class="pill bg-purple-600">💾</button>
+  </div>
+  <button id="btnClose" class="pill bg-gray-700">Kapat</button>
+</div>
+
+<audio id="audioEl"></audio>
