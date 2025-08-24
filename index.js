@@ -123,11 +123,12 @@ app.get('/stream/:videoId', async (req, res) => {
           client: 'YTMUSIC'
     });
 
-    console.log(stream)
+    
     // Streami direkt olarak yanıtla
-   res.setHeader('Content-Type', 'audio/opus');
-    res.setHeader('Content-Disposition', `attachment; filename="${videoId}.opus"`);
-    res.send(stream);
+   res.setHeader('Content-Type', 'audio/webm');
+    res.setHeader('Content-Disposition', `attachment; filename="${videoId}.webm"`);
+    const response = await fetch(stream.url);
+    response.body.pipe(res);
     // Header ayarı
        // Streami gönderiyoruz
 
