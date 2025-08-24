@@ -1,620 +1,463 @@
 // public/js/app.js
-// Full-featured frontend player logic — mobile-first, media session, notifications, cache, yt search & queue.
-// Assumes DOM structure from layout.ejs / index.ejs provided earlier.
+// Module: Full frontend logic for SLP (Lark-like experience)
+const API_SEARCH = '/api/search';    // expects JSON { results: [ { title, author, thumbnail, url } ] }
+const STREAM_PREFIX = '/stream/';    // server: /stream/:videoId
+const LS_PL = 'slp_playlists_v1';
+const LS_CACHE_META = 'slp_cache_meta_v1';
 
 const audio = document.getElementById('audioEl');
+const mainSearch = document.getElementById('mainSearch');
+const searchBtn = document.getElementById('searchBtn');
+const playlistsGrid = document.getElementById('playlistsGrid');
+const resultsEl = document.getElementById('results');
+const cachedList = document.getElementById('cachedList');
 
-// UI refs (big player + controls)
-const npArt = document.getElementById('npArt');
-const npTitle = document.getElementById('npTitle');
-const npArtist = document.getElementById('npArtist');
-const npCur = document.getElementById('npCur');
-const npDur = document.getElementById('npDur');
-const seek = document.getElementById('seek');
+const miniPlayer = document.getElementById('miniPlayer');
+const miniArt = document.getElementById('miniArt');
+const miniTitle = document.getElementById('miniTitle');
+const miniArtist = document.getElementById('miniArtist');
+const miniPlay = document.getElementById('miniPlay');
+const miniAdd = document.getElementById('miniAdd');
 
+const bigPlayer = document.getElementById('bigPlayer');
+const bigArt = document.getElementById('bigArt');
+const bigTitle = document.getElementById('bigTitle');
+const bigArtist = document.getElementById('bigArtist');
 const btnPlay = document.getElementById('btnPlay');
 const btnPrev = document.getElementById('btnPrev');
 const btnNext = document.getElementById('btnNext');
-const btnRew = document.getElementById('btnRew');
-const btnFf = document.getElementById('btnFf');
-const btnRepeat = document.getElementById('btnRepeat');
 const btnShuffle = document.getElementById('btnShuffle');
-const btnExpand = document.getElementById('btnExpand');
+const btnLoop = document.getElementById('btnLoop');
+const btnDownload = document.getElementById('btnDownload');
+const btnAddToPl = document.getElementById('btnAddToPl');
+const btnShare = document.getElementById('btnShare');
 const btnClose = document.getElementById('btnClose');
 
-const tracksEl = document.getElementById('tracks');
-const playlistListEl = document.getElementById('playlistList');
-const downloadListEl = document.getElementById('downloadList');
-const searchInput = document.getElementById('searchInput');
-const searchBtnLocal = document.getElementById('searchBtnLocal');
-const installBtn = document.getElementById('installBtn');
-const themeToggle = document.getElementById('themeToggle');
-const themeLabel = document.getElementById('themeLabel');
+const progressFill = document.getElementById('progressFill');
+const progressThumb = document.getElementById('progressThumb');
+const curTimeEl = document.getElementById('curTime');
+const durTimeEl = document.getElementById('durTime');
 
-let deferredPrompt = null;
-
-// PWA install prompt handling
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  installBtn?.classList.remove('hidden');
-});
-installBtn?.addEventListener('click', async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  const res = await deferredPrompt.userChoice.catch(()=>({outcome:'dismissed'}));
-  deferredPrompt = null;
-  installBtn.classList.add('hidden');
-});
-
-// Theme toggle
-function setTheme(mode) {
-  if (mode === 'dark') {
-    document.documentElement.classList.add('dark');
-    themeLabel.textContent = 'Koyu';
-  } else {
-    document.documentElement.classList.remove('dark');
-    themeLabel.textContent = 'Açık';
-  }
-  localStorage.setItem('theme', mode);
+let playlists = JSON.parse(localStorage.getItem(LS_PL) || 'null') || null;
+let cacheMeta = JSON.parse(localStorage.getItem(LS_CACHE_META) || '{}');
+if (!playlists) {
+  // first-run: create a default playlist; use placeholder cover (can be changed later)
+  playlists = [
+    { id: 'pl_liked', name: 'Liked (YouTube)', cover: '/icons/icon-512.png', items: [] }
+  ];
+  localStorage.setItem(LS_PL, JSON.stringify(playlists));
 }
-setTheme(localStorage.getItem('theme') || 'dark');
-themeToggle?.addEventListener('click', () => {
-  const cur = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-  setTheme(cur === 'dark' ? 'light' : 'dark');
-});
 
-// Storage keys and sample tracks
-const LS_TRACKS = 'mp_tracks_v3';
-const LS_PLAYLISTS = 'mp_playlists_v3';
-const SAMPLE_TRACKS = [
-  // Note: local tracks are present but play is disabled per request (only YouTube & cached YT allowed)
-  { id: 'local1', title: 'Local Example', artist: 'Artist', url: '/audio/sample1.mp3', artwork: '/icons/icon-512.png', duration: 0 }
-];
+function savePl() { localStorage.setItem(LS_PL, JSON.stringify(playlists)); }
+function saveCacheMeta() { localStorage.setItem(LS_CACHE_META, JSON.stringify(cacheMeta)); }
 
-function load(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
-}
-function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
-
-let tracks = load(LS_TRACKS, SAMPLE_TRACKS);
-let playlists = load(LS_PLAYLISTS, [{ id:'pl1', name:'Favoriler', cover:null, items:[] }]);
-
-// Player state
-let queue = [];            // array of items: {id, type:'yt'|'local', title, artist, artwork, url? , videoId?}
+// State: queue (array of {type:'yt',videoId,title,author,thumb}), currentIndex
+let queue = [];
 let currentIndex = -1;
-let repeatMode = 'off';    // off | one | all
 let shuffle = false;
-let seekDragging = false;
+let loopMode = 'off'; // off|one|all
+let lastSearch = [];
 
-// Helpers
-const fmt = (t) => {
-  if (!isFinite(t) || t < 0) t = 0;
-  const m = Math.floor(t/60), s = Math.floor(t%60).toString().padStart(2,'0');
-  return `${m}:${s}`;
-};
+// UI helpers
+function mkSVGPlay(){ return '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3v18l15-9"/></svg>'; }
+function mkSVGPause(){ return '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zM14 5v14h4V5h-4z"/></svg>'; }
+function mkBadge(){ return '<span class="badge-down">İndirildi</span>'; }
 
-function updateUIPlaying(isPlaying) {
-  if (isPlaying) {
-    btnPlay.classList.add('playing');
-    btnPlay.innerHTML = '⏸';
-  } else {
-    btnPlay.classList.remove('playing');
-    btnPlay.innerHTML = '▶';
-  }
-}
-
-// Media Session & Notification helpers
-function updateMediaSessionMeta(item) {
-  if (!('mediaSession' in navigator)) return;
-  try {
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: item.title || 'Unknown',
-      artist: item.artist || '',
-      album: 'SLP',
-      artwork: [{ src: item.artwork || '/icons/icon-512.png', sizes: '512x512', type: 'image/png' }]
-    });
-    navigator.mediaSession.setActionHandler('play', async ()=> await audio.play());
-    navigator.mediaSession.setActionHandler('pause', ()=> audio.pause());
-    navigator.mediaSession.setActionHandler('previoustrack', playPrev);
-    navigator.mediaSession.setActionHandler('nexttrack', playNext);
-    navigator.mediaSession.setActionHandler('seekbackward', ()=> audio.currentTime = Math.max(0, audio.currentTime - 10));
-    navigator.mediaSession.setActionHandler('seekforward', ()=> audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10));
-    navigator.mediaSession.setActionHandler('seekto', (details) => {
-      if (details.fastSeek && typeof audio.fastSeek === 'function') audio.fastSeek(details.seekTime);
-      else audio.currentTime = details.seekTime;
-    });
-  } catch(e) { /* ignore */ }
-}
-
-async function showNowPlayingNotification(item) {
-  try {
-    if (!('serviceWorker' in navigator) || Notification.permission !== 'granted') return;
-    const reg = await navigator.serviceWorker.getRegistration();
-    if (!reg) return;
-    // Make artwork available: if remote CORS issues, fallback to icon
-    const icon = item.artwork || '/icons/icon-192.png';
-    await reg.showNotification(item.title || 'Çalınıyor', {
-      body: (item.artist || '') + ' — SLP',
-      icon,
-      badge: '/icons/icon-192.png',
-      tag: 'now-playing',
-      renotify: true,
-      actions: [
-        { action: 'prev', title: '⏮' },
-        { action: 'rew', title: '-10s' },
-        { action: 'toggle', title: audio.paused ? '▶' : '⏸' },
-        { action: 'ff', title: '+10s' },
-        { action: 'next', title: '⏭' }
-      ]
-    });
-  } catch (e) {
-    console.warn('Notif error', e);
-  }
-}
-
-// Queue management
-function setQueue(items, start = 0) {
-  queue = items.slice();
-  currentIndex = Math.min(Math.max(start, 0), queue.length - 1);
-  // Play index safely
-  if (queue.length > 0 && currentIndex >= 0) playIndex(currentIndex);
-}
-
-function playIndex(idx) {
-  if (!queue[idx]) return;
-  currentIndex = idx;
-  const item = queue[idx];
-
-  // If cached in Cache API -> play cached response
-  const cacheKey = (item.type === 'yt' && item.videoId) ? `/stream/${item.videoId}` : item.url;
-  caches.open('yt-audio-v1').then(c => c.match(cacheKey)).then(hit => {
-    if (hit) {
-      // cached -> use blob URL
-      return hit.blob().then(b => URL.createObjectURL(b));
-    } else {
-      // not cached -> use stream endpoint (for yt) or direct url for local (local play disabled by requirement)
-      if (item.type === 'yt') return `/stream/${item.videoId}`;
-      return item.url || '';
-    }
-  }).then(src => {
-    if (!src) return;
-    audio.src = src;
-    audio.play().catch(()=>{});
-    // Update UI meta
-    npTitle.textContent = item.title || '—';
-    npArtist.textContent = item.artist || '—';
-    npArt.src = item.artwork || '/icons/icon-512.png';
-    updateMediaSessionMeta(item);
-    showNowPlayingNotification(item);
-    updateUIPlaying(true);
-  }).catch(err => {
-    console.error('playIndex error', err);
-  });
-}
-
-function playNext() {
-  if (queue.length === 0) return;
-  if (shuffle) {
-    const next = Math.floor(Math.random() * queue.length);
-    playIndex(next);
-    return;
-  }
-  let nextIndex = currentIndex + 1;
-  if (nextIndex >= queue.length) {
-    if (repeatMode === 'all') nextIndex = 0;
-    else { /* stop at end */ audio.pause(); return; }
-  }
-  playIndex(nextIndex);
-}
-
-function playPrev() {
-  if (audio.currentTime > 3) { audio.currentTime = 0; return; }
-  if (shuffle) {
-    const prev = Math.floor(Math.random() * queue.length);
-    playIndex(prev); return;
-  }
-  let prevIndex = currentIndex - 1;
-  if (prevIndex < 0) {
-    if (repeatMode === 'all') prevIndex = queue.length - 1;
-    else { audio.currentTime = 0; return; }
-  }
-  playIndex(prevIndex);
-}
-
-// Audio events
-audio.addEventListener('loadedmetadata', () => {
-  npDur.textContent = fmt(audio.duration || 0);
-  seek.max = Math.floor(audio.duration || 0);
-});
-audio.addEventListener('timeupdate', () => {
-  npCur.textContent = fmt(audio.currentTime || 0);
-  if (!seekDragging) seek.value = Math.floor(audio.currentTime || 0);
-});
-seek.addEventListener('input', () => {
-  seekDragging = true;
-  npCur.textContent = fmt(+seek.value);
-});
-seek.addEventListener('change', () => {
-  audio.currentTime = +seek.value;
-  seekDragging = false;
-});
-audio.addEventListener('play', () => updateUIPlaying(true));
-audio.addEventListener('pause', () => updateUIPlaying(false));
-audio.addEventListener('ended', () => {
-  if (repeatMode === 'one') {
-    audio.currentTime = 0; audio.play();
-  } else playNext();
-});
-
-// Control wiring
-btnPlay.addEventListener('click', () => {
-  if (audio.paused) audio.play();
-  else audio.pause();
-});
-btnPrev.addEventListener('click', playPrev);
-btnNext.addEventListener('click', playNext);
-btnRew.addEventListener('click', () => audio.currentTime = Math.max(0, audio.currentTime - 10));
-btnFf.addEventListener('click', () => audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10));
-btnRepeat.addEventListener('click', () => {
-  repeatMode = repeatMode === 'off' ? 'all' : repeatMode === 'all' ? 'one' : 'off';
-  btnRepeat.textContent = repeatMode === 'one' ? '⟲1' : repeatMode === 'all' ? '⟲∞' : '⟲';
-});
-btnShuffle.addEventListener('click', () => {
-  shuffle = !shuffle;
-  btnShuffle.classList.toggle('ring-2', shuffle);
-});
-
-// Play/pause via space bar when focused (accessibility)
-window.addEventListener('keydown', (e) => {
-  if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
-    e.preventDefault(); if (audio.paused) audio.play(); else audio.pause();
-  }
-});
-
-// Rendering library and YouTube search
-function renderLocalTracks(container) {
-  // local tracks are present but per request local play disabled -> show but disable play button visually
-  const list = tracks || [];
-  list.forEach(t => {
-    const row = document.createElement('div');
-    row.className = 'flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
-    row.innerHTML = `
-      <div class="flex items-center gap-3 min-w-0">
-        <img src="${t.artwork||'/icons/icon-192.png'}" class="w-12 h-12 rounded-lg object-cover"/>
-        <div class="min-w-0">
-          <div class="font-medium truncate max-w-[220px]">${t.title}</div>
-          <div class="text-xs text-slate-500 dark:text-white/50 truncate max-w-[220px]">${t.artist||''}</div>
-        </div>
+// render playlists (left)
+function renderPlaylists() {
+  playlistsGrid.innerHTML = '';
+  playlists.forEach(pl => {
+    const div = document.createElement('div');
+    div.className = 'pl-card flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-white/60 to-white/40 dark:from-panel/80 dark:to-panel/70';
+    div.innerHTML = `
+      <img src="${pl.cover || '/icons/icon-512.png'}" class="w-16 h-16 rounded-lg object-cover"/>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold truncate">${pl.name}</div>
+        <div class="text-xs text-gray-500 dark:text-white/50">${pl.items.length} parça</div>
       </div>
-      <div class="flex gap-2">
-        <button class="btn disabled-play" title="Local play disabled">⏵</button>
-        <button class="btn addpl" data-id="${t.id}" title="Playlist'e ekle">＋</button>
+      <div class="flex flex-col gap-1">
+        <button class="open-pl text-xs px-2 py-1 rounded-full bg-accent text-white" data-id="${pl.id}">Aç</button>
+        <button class="edit-pl text-xs px-2 py-1 rounded-full bg-white/10" data-id="${pl.id}">Düzenle</button>
       </div>
     `;
-    container.appendChild(row);
+    // clicking anywhere on card opens
+    div.querySelector('.open-pl').addEventListener('click', ()=> openPlaylistDetail(pl.id));
+    div.querySelector('.edit-pl').addEventListener('click', ()=> editPlaylist(pl.id));
+    playlistsGrid.appendChild(div);
   });
 }
 
-function renderYtResults(container, results) {
-  // results: [{title, author, thumbnail, url, videoId}]
-  results.forEach(t => {
-    const row = document.createElement('div');
-    row.className = 'flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
-    row.innerHTML = `
-      <div class="flex items-center gap-3 min-w-0">
-        <img src="${t.thumbnail}" class="w-12 h-12 rounded-lg object-cover"/>
-        <div class="min-w-0">
-          <div class="font-medium truncate max-w-[220px]">${t.title}</div>
-          <div class="text-xs text-slate-500 dark:text-white/50 truncate max-w-[220px]">${t.author||''}</div>
-        </div>
-      </div>
-      <div class="flex gap-2">
-        <button class="btn play-yt" data-videoid="${t.videoId}" data-title="${escapeHtmlAttr(t.title)}" data-author="${escapeHtmlAttr(t.author)}" data-thumb="${t.thumbnail}" title="Çal">▶</button>
-        <button class="btn addpl-yt" data-videoid="${t.videoId}" data-title="${escapeHtmlAttr(t.title)}" data-author="${escapeHtmlAttr(t.author)}" data-thumb="${t.thumbnail}" title="Playlist'e ekle">＋</button>
-        <button class="btn cache-yt" data-videoid="${t.videoId}" data-title="${escapeHtmlAttr(t.title)}" data-author="${escapeHtmlAttr(t.author)}" data-thumb="${t.thumbnail}" title="Önbelleğe al">⬇</button>
-      </div>
-    `;
-    container.appendChild(row);
-  });
-}
+// open playlist detail (right panel)
+const playlistDetail = document.getElementById('playlistDetail');
+const detailCover = document.getElementById('detailCover');
+const detailName = document.getElementById('detailName');
+const detailCount = document.getElementById('detailCount');
+const detailTracks = document.getElementById('detailTracks');
 
-// Escape helper for data attributes
-function escapeHtmlAttr(s) { return String(s||'').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-
-// Main render
-async function renderLibrary(filter = '') {
-  tracksEl.innerHTML = '';
-  // 1) Local (but play disabled)
-  renderLocalTracks(tracksEl);
-
-  // 2) If search query provided -> YouTube search
-  const q = (filter || '').trim();
-  if (!q) {
-    document.getElementById('noResults')?.classList.remove('hidden');
-    return;
-  }
-  document.getElementById('noResults')?.classList.add('hidden');
-
-  try {
-    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-    if (!res.ok) throw new Error('YT search failed');
-    const data = await res.json();
-    const results = (data.results || []).map(r => ({
-      title: r.title,
-      author: r.author,
-      thumbnail: r.thumbnail,
-      url: r.url,
-      videoId: (new URL(r.url)).searchParams.get('v') || r.id || null
-    })).filter(x => x.videoId);
-    if (results.length === 0) {
-      const no = document.createElement('div'); no.className = 'text-sm text-slate-500'; no.textContent = 'YouTube sonuç bulunamadı.';
-      tracksEl.appendChild(no);
-      return;
-    }
-    renderYtResults(tracksEl, results);
-    // Save last search results to ephemeral queue source (so "continue" from search works)
-    lastSearchResults = results;
-  } catch (e) {
-    console.error('YT search error', e);
-    const errDiv = document.createElement('div'); errDiv.className = 'text-sm text-red-500'; errDiv.textContent = 'Arama esnasında hata.';
-    tracksEl.appendChild(errDiv);
-  }
-}
-
-let lastSearchResults = [];
-
-// Search wiring
-searchBtnLocal?.addEventListener('click', () => renderLibrary(searchInput?.value || ''));
-searchInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') renderLibrary(searchInput.value || ''); });
-
-// Click delegation for play/add/cache on results
-tracksEl.addEventListener('click', async (e) => {
-  const btn = e.target.closest('button');
-  if (!btn) return;
-  // YT play
-  if (btn.classList.contains('play-yt')) {
-    const videoId = btn.dataset.videoid;
-    const title = btn.dataset.title;
-    const author = btn.dataset.author;
-    const thumb = btn.dataset.thumb;
-    // Build queue from lastSearchResults so "continue" uses search order
-    const items = lastSearchResults.map(r => ({ type:'yt', videoId: r.videoId, title: r.title, artist: r.author, artwork: r.thumbnail }));
-    const start = items.findIndex(it => it.videoId === videoId);
-    if (start === -1) {
-      // fallback: single item
-      setQueue([{ type:'yt', videoId, title, artist:author, artwork:thumb }], 0);
-    } else {
-      setQueue(items, start);
-    }
-    return;
-  }
-  // YT add to playlist
-  if (btn.classList.contains('addpl-yt')) {
-    const videoId = btn.dataset.videoid;
-    const title = btn.dataset.title;
-    // convert video item to a unique string id for playlist, e.g. "yt:videoId"
-    const plItemId = `yt:${videoId}`;
-    // show playlist selection
-    if (playlists.length === 0) { Swal.fire('Önce playlist oluştur'); return; }
-    const options = playlists.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
-    const { value: plId } = await Swal.fire({ title:'Playlist seç', html:`<select id="pl-select" class="swal2-select">${options}</select>`, preConfirm: ()=> document.getElementById('pl-select').value, showCancelButton:true, confirmButtonText:'Ekle' });
-    if (!plId) return;
-    const pl = playlists.find(p=>p.id === plId);
-    if (!pl.items.includes(plItemId)) pl.items.push(plItemId);
-    save(LS_PLAYLISTS, playlists); renderPlaylists(); Swal.fire('Eklendi');
-    return;
-  }
-  // YT cache button
-  if (btn.classList.contains('cache-yt')) {
-    const videoId = btn.dataset.videoid;
-    await cacheYouTubeStream(videoId, { title: btn.dataset.title, artist: btn.dataset.author, artwork: btn.dataset.thumb });
-    return;
-  }
-  // local playlist add (for disabled local play)
-  if (btn.classList.contains('addpl')) {
-    const id = btn.dataset.id;
-    addToPlaylistDialog(id);
-  }
-});
-
-// Caching function for YT streams: fetch /stream/:id and store in Cache API
-async function cacheYouTubeStream(videoId, meta = {}) {
-  try {
-    const cache = await caches.open('yt-audio-v1');
-    const streamUrl = `/stream/${videoId}`; // server should return proxied stream (Range supported)
-    const resp = await fetch(streamUrl);
-    if (!resp.ok) throw new Error('Stream fetch failed: ' + resp.status);
-    // store clone in cache
-    await cache.put(streamUrl, resp.clone());
-    Swal.fire('YT Cache tamam');
-    renderDownloads();
-  } catch (e) {
-    console.error('cache error', e);
-    Swal.fire('YT Cache hatası: ' + (e.message || ''));
-  }
-}
-
-// Downloads view - show cached entries
-async function renderDownloads() {
-  if (!downloadListEl) return;
-  downloadListEl.innerHTML = '';
-  const c = await caches.open('yt-audio-v1');
-  const keys = await c.keys();
-  if (keys.length === 0) {
-    downloadListEl.innerHTML = '<div class="text-sm text-slate-500">Önbellek boş</div>';
-    return;
-  }
-  for (const req of keys) {
-    const url = req.url.replace(location.origin, '');
+function openPlaylistDetail(plId) {
+  const pl = playlists.find(x=>x.id===plId); if(!pl) return;
+  detailCover.src = pl.cover || '/icons/icon-512.png';
+  detailName.textContent = pl.name;
+  detailCount.textContent = `${pl.items.length} parça`;
+  detailTracks.innerHTML = '';
+  // items stored as 'yt:VIDEOID' or local ids (we handle yt only)
+  pl.items.forEach((it, idx) => {
+    const videoId = (typeof it === 'string' && it.startsWith('yt:')) ? it.split(':')[1] : null;
     const li = document.createElement('li');
     li.className = 'flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
-    const name = url.startsWith('/stream/') ? url.split('/').pop() : url;
-    li.innerHTML = `<div class="truncate">${name}</div>
-      <div class="flex gap-2">
-        <button data-url="${url}" class="play cached-play">Çal</button>
-        <button data-url="${url}" class="rm cached-del">Sil</button>
-      </div>`;
-    downloadListEl.appendChild(li);
+    if (videoId) {
+      // try to get cached meta for nice display, else show id
+      const meta = cacheMeta[videoId] || {};
+      li.innerHTML = `
+        <div class="flex items-center gap-3 min-w-0">
+          <img src="${meta.thumb||'/icons/icon-192.png'}" class="w-12 h-12 rounded object-cover"/>
+          <div class="min-w-0">
+            <div class="truncate font-medium">${meta.title||videoId}</div>
+            <div class="text-xs text-gray-500 dark:text-white/50 truncate">${meta.author||''}</div>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button class="play-song px-3 py-1 rounded-full bg-accent text-white" data-vid="${videoId}">Çal</button>
+          <button class="more-song px-3 py-1 rounded-full bg-white/10" data-vid="${videoId}">⋯</button>
+          <button class="del-song px-3 py-1 rounded-full bg-white/10" data-index="${idx}">Sil</button>
+        </div>
+      `;
+      li.querySelector('.play-song').addEventListener('click', ()=> playPlaylistAt(plId, idx));
+      li.querySelector('.more-song').addEventListener('click', (e)=> songMoreMenu(videoId, e.target));
+      li.querySelector('.del-song').addEventListener('click', ()=> {
+        pl.items.splice(idx,1); savePl(); openPlaylistDetail(plId); renderPlaylists();
+      });
+    } else {
+      li.textContent = 'Unsupported item';
+    }
+    detailTracks.appendChild(li);
+  });
+
+  playlistDetail.classList.remove('hidden');
+  document.getElementById('homeArea').classList.add('hidden');
+}
+
+// play playlist at index
+function playPlaylistAt(plId, idx) {
+  const pl = playlists.find(x=>x.id===plId); if(!pl) return;
+  const items = pl.items.map(it => {
+    if (typeof it === 'string' && it.startsWith('yt:')) {
+      const v = it.split(':')[1];
+      const meta = cacheMeta[v] || {};
+      return { type:'yt', videoId: v, title: meta.title || v, author: meta.author || '', thumb: meta.thumb || '' };
+    }
+    return null;
+  }).filter(Boolean);
+  queue = items;
+  currentIndex = Math.max(0, Math.min(idx, queue.length-1));
+  startQueueAt(currentIndex);
+}
+
+// song "more" menu: share, cache, view details
+function songMoreMenu(videoId, btnEl) {
+  Swal.fire({
+    title: 'Seçenekler',
+    showCancelButton: true,
+    html: `<div class="space-y-2">
+      <button id="splay" class="swal2-confirm swal2-styled" style="display:inline-block">Çal</button>
+      <button id="scache" class="swal2-confirm swal2-styled" style="display:inline-block;margin-left:8px;background:#7c3aed">Önbelleğe al</button>
+      <button id="sshare" class="swal2-confirm swal2-styled" style="display:inline-block;margin-left:8px;background:#444">Paylaş</button>
+    </div>`,
+    showConfirmButton: false
+  }).then(()=>{});
+  setTimeout(()=> {
+    document.getElementById('splay').addEventListener('click', ()=> {
+      playSingleVideo(videoId); Swal.close();
+    });
+    document.getElementById('scache').addEventListener('click', ()=> { cacheVideo(videoId); Swal.close(); });
+    document.getElementById('sshare').addEventListener('click', ()=> { shareSong(videoId); Swal.close(); });
+  },80);
+}
+
+// play a single video: build a transient queue with lastSearch if available
+function playSingleVideo(videoId) {
+  // if lastSearch includes this video, build queue from lastSearch (so continue works), else play single.
+  const idx = lastSearch.findIndex(x=>x.videoId===videoId);
+  if (idx !== -1) {
+    queue = lastSearch.map(r=> ({ type:'yt', videoId: r.videoId, title:r.title, author:r.author, thumb:r.thumbnail }));
+    startQueueAt(idx);
+  } else {
+    queue = [{ type:'yt', videoId, title: (cacheMeta[videoId] && cacheMeta[videoId].title) || videoId }];
+    startQueueAt(0);
   }
 }
 
-// Downloads click handling
-downloadListEl.addEventListener('click', async (e) => {
-  const b = e.target.closest('button'); if (!b) return;
-  const url = b.dataset.url;
-  const c = await caches.open('yt-audio-v1');
-  if (b.classList.contains('cached-play')) {
-    const hit = await c.match(url);
-    if (hit) {
-      const blob = await hit.blob();
-      audio.src = URL.createObjectURL(blob);
-      audio.play();
-    }
-  } else if (b.classList.contains('cached-del')) {
-    await c.delete(url);
-    renderDownloads();
+// start queue at index (set current and play)
+function startQueueAt(i) {
+  currentIndex = i;
+  playCurrent();
+  showMini();
+}
+
+// playCurrent obtains src (cached blob if present, else /stream/:id) and sets audio.src
+async function playCurrent() {
+  if (!queue[currentIndex]) return;
+  const item = queue[currentIndex];
+  updateBigPlayerMeta(item);
+  // check cache
+  const cachedKey = STREAM_PREFIX + item.videoId;
+  const c = await caches.open('slp_streams_v1');
+  const hit = await c.match(cachedKey);
+  if (hit) {
+    const blob = await hit.blob();
+    audio.src = URL.createObjectURL(blob);
+  } else {
+    // use stream endpoint (server must support Range)
+    audio.src = STREAM_PREFIX + item.videoId;
   }
+  audio.play().catch(()=>{});
+}
+
+// update big/mini UI meta
+function updateBigPlayerMeta(item) {
+  bigTitle.textContent = item.title || '—';
+  bigArtist.textContent = item.author || '—';
+  bigArt.src = item.thumb || '/icons/icon-512.png';
+  miniTitle.textContent = item.title || '—';
+  miniArtist.textContent = item.author || '—';
+  miniArt.src = item.thumb || '/icons/icon-192.png';
+}
+
+// show mini
+function showMini() { miniPlayer.classList.remove('hidden'); }
+// hide mini
+function hideMini(){ miniPlayer.classList.add('hidden'); }
+
+// event: audio time/progress UI
+audio.addEventListener('timeupdate', ()=>{
+  const d = audio.duration || 0;
+  const cur = audio.currentTime || 0;
+  const pct = d ? Math.max(0, Math.min(1, cur/d))*100 : 0;
+  progressFill.style.width = pct+'%';
+  progressThumb.style.left = `calc(${pct}% - 7px)`;
+  curTimeEl.textContent = formatTime(cur);
+  durTimeEl.textContent = formatTime(d);
 });
 
-// Playlist rendering & CRUD
-function renderPlaylists() {
-  playlistListEl.innerHTML = '';
-  playlists.forEach(pl => {
-    const li = document.createElement('li');
-    li.className = 'group relative rounded-xl overflow-hidden bg-black/5 dark:bg-white/10 p-2 mb-2 flex items-center justify-between';
-    li.innerHTML = `
+// click progress to seek
+document.querySelector('.progress-track')?.addEventListener('click', (e)=>{
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const pct = x / rect.width;
+  audio.currentTime = (audio.duration || 0) * pct;
+});
+
+// play/pause wiring
+miniPlay.addEventListener('click', (e)=> {
+  e.stopPropagation();
+  if (audio.paused) audio.play(); else audio.pause();
+});
+btnPlay.addEventListener('click', ()=> { if (audio.paused) audio.play(); else audio.pause(); });
+audio.addEventListener('play', ()=> { miniPlay.innerHTML = mkSVGPause(); btnPlay.innerHTML = mkSVGPause(); updateMediaSession(); });
+audio.addEventListener('pause', ()=> { miniPlay.innerHTML = mkSVGPlay(); btnPlay.innerHTML = mkSVGPlay(); updateMediaSession(); });
+
+// prev/next
+btnPrev.addEventListener('click', ()=> {
+  if (audio.currentTime > 3) { audio.currentTime = 0; return; }
+  if (shuffle) { currentIndex = Math.floor(Math.random()*queue.length); } else currentIndex = Math.max(0, currentIndex-1);
+  playCurrent();
+});
+btnNext.addEventListener('click', ()=> {
+  if (shuffle) currentIndex = Math.floor(Math.random()*queue.length);
+  else {
+    currentIndex++;
+    if (currentIndex >= queue.length) {
+      if (loopMode === 'all') currentIndex = 0;
+      else { audio.pause(); return; }
+    }
+  }
+  playCurrent();
+});
+
+// shuffle/loop toggles
+btnShuffle.addEventListener('click', ()=> { shuffle = !shuffle; btnShuffle.classList.toggle('ring-2', shuffle); });
+btnLoop.addEventListener('click', ()=> {
+  loopMode = loopMode === 'off' ? 'all' : loopMode === 'all' ? 'one' : 'off';
+  btnLoop.textContent = loopMode === 'one' ? '⟲1' : loopMode === 'all' ? '⟲∞' : '⟲';
+});
+
+// on track end
+audio.addEventListener('ended', ()=> {
+  if (loopMode === 'one') { audio.currentTime = 0; audio.play(); return; }
+  // auto next
+  btnNext.click();
+});
+
+// search wiring
+searchBtn.addEventListener('click', ()=> performSearch(mainSearch.value || ''));
+mainSearch.addEventListener('keydown', (e)=> { if (e.key === 'Enter') performSearch(mainSearch.value || ''); });
+
+async function performSearch(q) {
+  if (!q || q.trim().length < 1) return;
+  resultsEl.innerHTML = '<div class="text-sm text-gray-500">Aranıyor…</div>';
+  try {
+    const res = await fetch(API_SEARCH + '?q=' + encodeURIComponent(q));
+    if (!res.ok) throw new Error('search failed');
+    const json = await res.json();
+    const arr = (json.results || []).map(r => {
+      // normalize: take URL and extract v param
+      let vid = null;
+      try { vid = new URL(r.url).searchParams.get('v') || r.id || null; } catch(e){ vid = r.id || null; }
+      return { title: r.title, author: r.author, thumbnail: r.thumbnail, url: r.url, videoId: vid };
+    }).filter(x=>x.videoId);
+    lastSearch = arr;
+    renderSearchResults(arr);
+  } catch (e) {
+    console.error(e);
+    resultsEl.innerHTML = '<div class="text-sm text-red-500">Arama başarısız.</div>';
+  }
+}
+
+function renderSearchResults(list) {
+  resultsEl.innerHTML = '';
+  list.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
+    row.innerHTML = `
       <div class="flex items-center gap-3 min-w-0">
-        <img src="${pl.cover || '/icons/icon-512.png'}" class="w-12 h-12 rounded-lg object-cover"/>
+        <img src="${item.thumbnail}" class="w-12 h-12 rounded object-cover"/>
         <div class="min-w-0">
-          <div class="font-medium truncate max-w-[180px]">${pl.name}</div>
-          <div class="text-xs text-slate-500">${pl.items.length} parça</div>
+          <div class="truncate font-medium">${item.title}</div>
+          <div class="text-xs text-gray-500">${item.author}</div>
         </div>
       </div>
-      <div class="flex gap-1">
-        <button data-id="${pl.id}" class="open pl-open px-2 py-1 rounded-full bg-accent text-white text-xs">Çal</button>
-        <button data-id="${pl.id}" class="share pl-share px-2 py-1 rounded-full bg-white/10 text-xs">Paylaş</button>
-        <button data-id="${pl.id}" class="edit pl-edit px-2 py-1 rounded-full bg-white/10 text-xs">Düzenle</button>
-        <button data-id="${pl.id}" class="del pl-del px-2 py-1 rounded-full bg-white/10 text-xs">Sil</button>
+      <div class="flex gap-2">
+        <button class="play-it px-3 py-1 rounded-full bg-accent text-white" data-vid="${item.videoId}">Çal</button>
+        <button class="add-it px-3 py-1 rounded-full bg-white/10" data-vid="${item.videoId}">＋</button>
+        <button class="dl-it px-3 py-1 rounded-full bg-white/10" data-vid="${item.videoId}">⬇</button>
       </div>
     `;
-    playlistListEl.appendChild(li);
+    row.querySelector('.play-it').addEventListener('click', ()=> {
+      // build queue from search results so continue works
+      queue = list.map(l => ({ type:'yt', videoId: l.videoId, title: l.title, author: l.author, thumb: l.thumbnail }));
+      const idx = queue.findIndex(q=>q.videoId === item.videoId);
+      startQueueAt(idx);
+    });
+    row.querySelector('.add-it').addEventListener('click', ()=> promptAddToPlaylist(item));
+    row.querySelector('.dl-it').addEventListener('click', ()=> cacheVideo(item.videoId, { title: item.title, author:item.author, thumb:item.thumbnail }));
+    resultsEl.appendChild(row);
   });
 }
-playlistListEl.addEventListener('click', async (e) => {
-  const b = e.target.closest('button'); if (!b) return;
-  const id = b.dataset.id; const pl = playlists.find(x => x.id === id); if (!pl) return;
-  if (b.classList.contains('pl-open')) {
-    // Build queue: items are stored as "yt:VIDEOID" or local ids
-    const ids = pl.items.map(it => {
-      if (typeof it === 'string' && it.startsWith('yt:')) {
-        const vid = it.split(':')[1];
-        return { type:'yt', videoId: vid, title: vid, artist: '' };
-      } else {
-        // local
-        const t = tracks.find(tt => tt.id === it);
-        return t ? { type:'local', url: t.url, title: t.title, artist: t.artist, artwork: t.artwork } : null;
-      }
-    }).filter(Boolean);
-    if (ids.length === 0) { Swal.fire('Boş playlist'); return; }
-    // Per requirement, local tracks are disabled from playback; filter only yt or cached items
-    const filtered = ids.filter(i => i.type === 'yt');
-    if (filtered.length === 0) { Swal.fire('Bu çalma listesinde oynatılabilir YouTube parçası yok'); return; }
-    setQueue(filtered, 0);
-  } else if (b.classList.contains('pl-edit')) {
-    // simple edit name + cover
-    const { value } = await Swal.fire({
-      title: 'Playlist Düzenle',
-      html: `<input id="pln" class="swal2-input" placeholder="Ad" value="${pl.name}"><input id="plc" type="file" accept="image/*" class="swal2-file">`,
-      preConfirm: () => ({ name: document.getElementById('pln').value.trim(), file: document.getElementById('plc').files[0] || null }),
-      showCancelButton: true, confirmButtonText: 'Kaydet'
-    });
-    if (!value) return;
-    if (value.name) pl.name = value.name;
-    if (value.file) {
-      const reader = new FileReader();
-      reader.onload = () => { pl.cover = reader.result; save(LS_PLAYLISTS, playlists); renderPlaylists(); Swal.fire('Güncellendi'); };
-      reader.readAsDataURL(value.file);
-    } else {
-      save(LS_PLAYLISTS, playlists); renderPlaylists(); Swal.fire('Güncellendi');
-    }
-  } else if (b.classList.contains('pl-del')) {
-    const ok = (await Swal.fire({ title: 'Silinsin mi?', showCancelButton:true, confirmButtonText:'Sil' })).isConfirmed;
-    if (!ok) return;
-    playlists = playlists.filter(x => x.id !== id);
-    save(LS_PLAYLISTS, playlists); renderPlaylists();
-  } else if (b.classList.contains('pl-share')) {
-    sharePlaylist(pl);
-  }
-});
 
-// Share playlist via compressed URL
-function sharePlaylist(pl) {
-  const payload = { name: pl.name, items: pl.items, cover: pl.cover || null };
-  const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(payload));
-  const url = `${location.origin}${location.pathname}#pl=${compressed}`;
-  if (navigator.share) navigator.share({ title: pl.name, text: 'Playlist', url }).catch(() => {});
-  Swal.fire({ title: 'Paylaşım linki', html: `<input class="swal2-input" value="${url}" readonly>` });
-}
-
-// import from hash
-(function importFromHash(){
-  const m = location.hash.match(/#pl=([^&]+)/);
-  if (!m) return;
-  try {
-    const json = LZString.decompressFromEncodedURIComponent(m[1]);
-    if (!json) throw new Error('invalid');
-    const payload = JSON.parse(json);
-    const newPl = { id: crypto.randomUUID(), name: payload.name || 'Paylaşılan', cover: payload.cover || null, items: Array.isArray(payload.items) ? payload.items : [] };
-    playlists.push(newPl); save(LS_PLAYLISTS, playlists); renderPlaylists(); Swal.fire('Playlist içe aktarıldı');
-    history.replaceState(null, '', location.pathname + location.search);
-  } catch (e) {
-    console.error(e); Swal.fire('Playlist yüklenemedi');
-  }
-})();
-
-// Add to playlist dialog (for local items)
-async function addToPlaylistDialog(itemId) {
-  if (playlists.length === 0) { Swal.fire('Önce playlist oluştur'); return; }
-  const options = playlists.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
-  const { value: plId } = await Swal.fire({ title:'Playlist seç', html:`<select id="pl-select" class="swal2-select">${options}</select>`, preConfirm: ()=> document.getElementById('pl-select').value, showCancelButton:true, confirmButtonText:'Ekle' });
-  if (!plId) return;
-  const pl = playlists.find(p => p.id === plId);
-  if (!pl.items.includes(itemId)) pl.items.push(itemId);
-  save(LS_PLAYLISTS, playlists);
+// prompt add to playlist
+async function promptAddToPlaylist(item) {
+  const options = playlists.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  const { value } = await Swal.fire({
+    title: 'Playlist seç',
+    html: `<select id="pl-select" class="swal2-select">${options}</select>`,
+    preConfirm: () => document.getElementById('pl-select').value,
+    showCancelButton: true
+  });
+  if (!value) return;
+  const pl = playlists.find(p=>p.id === value);
+  pl.items.push('yt:' + item.videoId);
+  savePl();
   renderPlaylists();
   Swal.fire('Eklendi');
 }
 
-// Escaping function for safety (small helper used above)
-function decodeHTMLEntities(text) {
-  const txt = document.createElement('textarea');
-  txt.innerHTML = text;
-  return txt.value;
+// cache video (download)
+async function cacheVideo(videoId, meta = {}) {
+  try {
+    const cache = await caches.open('slp_streams_v1');
+    const url = STREAM_PREFIX + videoId;
+    const resp = await fetch(url, { headers: { 'Accept': 'audio/*' }});
+    if (!resp.ok) throw new Error('download failed: ' + resp.status);
+    await cache.put(url, resp.clone());
+    cacheMeta[videoId] = { title: meta.title || cacheMeta[videoId]?.title || videoId, author: meta.author || cacheMeta[videoId]?.author || '', thumb: meta.thumb || cacheMeta[videoId]?.thumb || '/icons/icon-192.png' };
+    saveCacheMeta();
+    renderCachedList();
+    Swal.fire('İndirildi (cache)');
+  } catch (e) {
+    console.error(e);
+    Swal.fire('İndirme başarısız: ' + (e.message||''));
+  }
 }
 
-// Service Worker messaging: react to notification actions forwarded from SW
-navigator.serviceWorker?.addEventListener('message', (e) => {
-  const { type } = e.data || {};
-  if (!type) return;
-  if (type === 'prev') playPrev();
-  if (type === 'rew') audio.currentTime = Math.max(0, audio.currentTime - 10);
-  if (type === 'ff') audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10);
-  if (type === 'toggle') { if (audio.paused) audio.play(); else audio.pause(); }
-  if (type === 'next') playNext();
-});
+// render cached list (offline panel)
+async function renderCachedList() {
+  cachedList.innerHTML = '';
+  const c = await caches.open('slp_streams_v1');
+  const keys = await c.keys();
+  if (keys.length === 0) { cachedList.innerHTML = '<div class="text-sm text-gray-500">Önbellek boş</div>'; return; }
+  for (const req of keys) {
+    const vid = req.url.split('/').pop();
+    const meta = cacheMeta[vid] || {};
+    const div = document.createElement('div');
+    div.className = 'flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10';
+    div.innerHTML = `
+      <div class="flex items-center gap-3 min-w-0">
+        <img src="${meta.thumb || '/icons/icon-192.png'}" class="w-10 h-10 rounded object-cover"/>
+        <div class="min-w-0">
+          <div class="truncate font-medium">${meta.title || vid}</div>
+          <div class="text-xs text-gray-500">${meta.author || ''}</div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button class="play-cache px-3 py-1 rounded-full bg-accent text-white" data-vid="${vid}">Çal</button>
+        <button class="del-cache px-3 py-1 rounded-full bg-white/10" data-vid="${vid}">Sil</button>
+      </div>
+    `;
+    div.querySelector('.play-cache').addEventListener('click', async ()=> {
+      queue = [{ type:'yt', videoId: vid, title: meta.title, author:meta.author, thumb:meta.thumb }];
+      startQueueAt(0);
+    });
+    div.querySelector('.del-cache').addEventListener('click', async ()=> {
+      const ok = (await Swal.fire({ title:'Silinsin mi?', showCancelButton:true, confirmButtonText:'Sil'})).isConfirmed;
+      if (!ok) return;
+      const c = await caches.open('slp_streams_v1'); await c.delete(STREAM_PREFIX + vid); delete cacheMeta[vid]; saveCacheMeta(); renderCachedList();
+    });
+    cachedList.appendChild(div);
+  }
+}
+
+// share song as hash
+function shareSong(videoId) {
+  const url = location.origin + location.pathname + '#song=' + encodeURIComponent(videoId);
+  navigator.clipboard?.writeText(url).then(()=> Swal.fire('Link kopyalandı: ' + url));
+}
+
+// handle hash on load (#song=VIDEOID)
+function processHash() {
+  const h = location.hash;
+  if (!h) return;
+  const m = h.match(/#song=([^&]+)/);
+  if (m) {
+    const vid = decodeURIComponent(m[1]);
+    playSingleVideo(vid);
+  }
+  // other cases (playlist import) can be added
+}
+
+// media session update
+function updateMediaSession(){
+  if (!('mediaSession' in navigator) || !queue[currentIndex]) return;
+  const it = queue[currentIndex];
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: it.title || '',
+    artist: it.author || '',
+    artwork: [{ src: it.thumb || '/icons/icon-192.png', sizes:'512x512', type:'image/png'}]
+  });
+  navigator.mediaSession.setActionHandler('play', ()=> audio.play());
+  navigator.mediaSession.setActionHandler('pause', ()=> audio.pause());
+  navigator.mediaSession.setActionHandler('previoustrack', ()=> btnPrev.click());
+  navigator.mediaSession.setActionHandler('nexttrack', ()=> btnNext.click());
+  navigator.mediaSession.setActionHandler('seekbackward', ()=> audio.currentTime = Math.max(0, audio.currentTime - 10));
+  navigator.mediaSession.setActionHandler('seekforward', ()=> audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10));
+}
 
 // initial render
 renderPlaylists();
-renderDownloads();
-renderLibrary(''); // empty initially
+renderCachedList();
+processHash();
 
-// Request notification permission if not granted, but do not spam
-if ('Notification' in window && Notification.permission === 'default') {
-  // don't auto prompt; provide button in UI
-}
-
-// Expose for console debugging (optional)
-window.SLP = {
-  setQueue, playNext, playPrev, cacheYouTubeStream, renderLibrary, renderPlaylists, renderDownloads
-};
+// Show only cached when offline
+window.addEventListener('load', () => {
+  if (!navigator.onLine) {
+    // hide search and results, show cached only
+    document.getElementById('homeArea').innerHTML = '<div class="text-sm">Çevrim dışı: yalnızca indirilen müzikler gö
