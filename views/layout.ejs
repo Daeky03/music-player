@@ -1,23 +1,131 @@
 <!DOCTYPE html>
-<html lang="tr" class="dark">
+<html lang="tr" class="h-full">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><%= title %> - SLP Player</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.3/dist/tailwind.min.css" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SLP — YouTube Music PWA</title>
+
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <meta name="theme-color" content="#0b0b0f"/>
+
+  <!-- SweetAlert2 + LZString -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lz-string/libs/lz-string.min.js"></script>
+
+  <!-- Tema FOUC engelle -->
+  <script>
+    (function(){
+      const ls = localStorage.getItem('theme') || 'dark';
+      if(ls === 'dark') document.documentElement.classList.add('dark');
+    })();
+  </script>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            ink: '#0b0b0f',
+            panel: '#12121a',
+            accent: '#a855f7',
+            accent2: '#7c3aed'
+          },
+          boxShadow: { glass: '0 10px 30px rgba(0,0,0,0.35)' },
+          borderRadius: { xl2: '1.25rem' }
+        }
+      }
+    }
+  </script>
+
   <style>
-    body { background: #12121a; color: #fff; }
-    .cut { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
-    .rounded-xl2 { border-radius: 1rem; }
-    .shadow-glass { box-shadow:0 8px 24px rgba(0,0,0,0.25); }
-    .pill { border-radius:9999px;padding:0.25rem 0.75rem;cursor:pointer; }
-    .badge-mor { width:8px;height:8px;background:#a855f7;border-radius:50%;display:inline-block;margin-left:4px; }
+    *{ scrollbar-width: thin; }
+    .cut { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btn-icon { @apply w-9 h-9 rounded-full flex items-center justify-center bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20; }
+    .pill { @apply px-3 py-1.5 rounded-full; }
   </style>
 </head>
-<body class="bg-[#12121a] dark:bg-[#1e1b2c] text-white">
-  <%- include(content) %>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
-  <script src="/app.js"></script>
+<body class="min-h-screen bg-white text-gray-900 dark:bg-ink dark:text-white">
+  <!-- Header -->
+  <header class="sticky top-0 z-30 border-b border-black/5 dark:border-white/10 bg-white/80 dark:bg-panel/80 backdrop-blur">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-3">
+        <img src="/icons/icon-192.png" class="w-8 h-8 rounded" alt="logo"/>
+        <h1 class="text-lg font-bold tracking-tight">SLP</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="themeToggle" class="pill bg-black/5 dark:bg-white/10">Tema: <span id="themeLabel">Koyu</span></button>
+        <button id="installBtn" class="pill bg-accent text-white hidden">Yükle</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-5xl mx-auto px-4 py-4">
+    <%- include(content) %>
+  </main>
+
+  <!-- Mini Player (ince bar) -->
+  <div id="miniPlayer" class="hidden fixed inset-x-0 bottom-16 sm:bottom-20 z-40">
+    <div class="mx-auto max-w-2xl">
+      <div class="mx-3 rounded-2xl bg-white/90 dark:bg-panel/90 backdrop-blur shadow-glass px-3 py-2 flex items-center gap-3">
+        <img id="npArtMini" src="/icons/icon-192.png" class="w-10 h-10 rounded-lg object-cover" alt="cover"/>
+        <div class="flex-1 min-w-0">
+          <div id="npTitleMini" class="cut text-sm font-medium">Çalan yok</div>
+          <div id="npArtistMini" class="cut text-xs text-gray-600 dark:text-white/60">—</div>
+        </div>
+        <div class="flex items-center gap-1">
+          <button id="btnMiniAdd" class="btn-icon" title="Playliste ekle">＋</button>
+          <button id="btnMiniPlay" class="pill bg-accent text-white">▶</button>
+          <button id="btnMiniMore" class="btn-icon" title="Seçenekler">⋯</button>
+          <button id="btnExpand" class="btn-icon" title="Büyüt">⤢</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expanded Player (MP3 çalar) -->
+  <div id="expandedPlayer" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur overflow-auto">
+    <div class="max-w-xl mx-auto p-6 flex flex-col items-center text-center gap-5">
+      <button id="btnClose" class="self-end btn-icon">✕</button>
+      <img id="npArt" src="/icons/icon-512.png" class="w-56 h-56 rounded-2xl object-cover shadow-xl" alt="cover"/>
+      <div class="w-full">
+        <div id="npTitle" class="text-xl font-semibold cut">Çalan yok</div>
+        <div id="npArtist" class="text-sm text-gray-300 cut">—</div>
+        <div class="mt-4 flex items-center gap-2">
+          <span id="npCur" class="text-xs w-12 text-right">0:00</span>
+          <input id="seek" type="range" min="0" max="100" value="0" class="w-full accent-accent">
+          <span id="npDur" class="text-xs w-12">0:00</span>
+        </div>
+        <div class="mt-5 flex items-center justify-center gap-2">
+          <button id="btnShuffle" class="btn-icon" title="Karıştır">🔀</button>
+          <button id="btnRew" class="btn-icon" title="-10 sn">⟲10</button>
+          <button id="btnPrev" class="btn-icon" title="Önceki">⏮</button>
+          <button id="btnPlay" class="pill bg-accent text-white px-6">▶</button>
+          <button id="btnNext" class="btn-icon" title="Sonraki">⏭</button>
+          <button id="btnFf" class="btn-icon" title="+10 sn">10⟳</button>
+          <button id="btnRepeat" class="btn-icon" title="Tekrar">⟲</button>
+          <button id="btnCache" class="btn-icon" title="İndir">⬇</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-panel/95 backdrop-blur border-t border-black/5 dark:border-white/10">
+    <div class="max-w-5xl mx-auto px-4">
+      <div class="grid grid-cols-3">
+        <button id="tab-home" class="py-3 text-sm font-medium text-center">Ana Sayfa</button>
+        <button id="tab-search" class="py-3 text-sm font-medium text-center">Ara</button>
+        <button id="tab-create" class="py-3 text-sm font-medium text-center">Oluştur</button>
+      </div>
+    </div>
+  </nav>
+
+  <audio id="audioEl" preload="metadata"></audio>
+  <script type="module" src="/js/app.js"></script>
 </body>
 </html>
