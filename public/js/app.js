@@ -197,14 +197,14 @@ async function renderLibrary(filter=''){
           <div class="text-xs text-gray-600 dark:text-white/60 truncate max-w-[200px]">${t.artist||''}</div>
         </div>
       </div>
-      <div class="flex items-center gap-2 mt-2 sm:mt-0">
-        <button data-id="${t.id}" class="play-btn rounded-full border border-gray-400 w-10 h-10 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700">
+      <div class="flex gap-2 mt-2 sm:mt-0">
+        <button data-id="${t.id}" class="btn play-btn" title="Çal">
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5 3v18l15-9z"/></svg>
         </button>
-        <button data-id="${t.id}" class="addpl-btn rounded-full border border-gray-400 w-10 h-10 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700">
+        <button data-id="${t.id}" class="btn addpl-btn" title="Playlist'e ekle">
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5v14m7-7H5"/></svg>
         </button>
-        <button data-id="${t.id}" class="cache-btn rounded-full border border-gray-400 w-10 h-10 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700">
+        <button data-id="${t.id}" class="btn cache-btn" title="Cachele">
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg>
         </button>
       </div>
@@ -229,14 +229,14 @@ async function renderLibrary(filter=''){
               <div class="text-xs text-gray-600 dark:text-white/60 truncate max-w-[200px]">${t.author}</div>
             </div>
           </div>
-          <div class="flex items-center gap-2 mt-2 sm:mt-0">
-            <button data-link="${t.url}" class="play-btn rounded-full border border-gray-400 w-10 h-10 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700">
+          <div class="flex gap-2 mt-2 sm:mt-0">
+            <button data-link="${t.url}" class="btn play-btn" title="Çal">
               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5 3v18l15-9z"/></svg>
             </button>
-            <button data-link="${t.url}" class="addpl-btn rounded-full border border-gray-400 w-10 h-10 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700">
+            <button data-link="${t.url}" class="btn addpl-btn" title="Playlist'e ekle">
               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5v14m7-7H5"/></svg>
             </button>
-            <button data-link="${t.url}" class="cache-btn rounded-full border border-gray-400 w-10 h-10 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700">
+            <button data-link="${t.url}" class="btn cache-btn" title="Cachele">
               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg>
             </button>
           </div>
@@ -261,8 +261,13 @@ tracksEl.addEventListener('click', async (e)=>{
   if(id){
     const t = tracks.find(x=>x.id===id);
     if(!t) return;
-    if(btn.classList.contains('play-btn')) setQueue([id], 0);
-    if(btn.classList.contains('addpl-btn')) addToPlaylistDialog(id);
+    if(btn.classList.contains('play-btn')){
+      audio.src = t.url;
+      audio.play();
+    }
+    if(btn.classList.contains('addpl-btn')){
+      addToPlaylistDialog(id);
+    }
     if(btn.classList.contains('cache-btn')){
       try {
         const res = await fetch(t.url);
@@ -284,9 +289,11 @@ tracksEl.addEventListener('click', async (e)=>{
     const videoId = params.get("v");
     if(!videoId) return;
 
+    const streamUrl = `/stream/${videoId}`; // MP4a / WebM stream linki
+
     if(btn.classList.contains('play-btn')){
-      // Queue'ya ekle ve devam ettir
-      setQueue([`yt:${videoId}`], 0);
+      audio.src = streamUrl;
+      audio.play();
     }
 
     if(btn.classList.contains('addpl-btn')){
@@ -295,11 +302,11 @@ tracksEl.addEventListener('click', async (e)=>{
 
     if(btn.classList.contains('cache-btn')){
       try {
-        const res = await fetch(`/stream/${videoId}`);
+        const res = await fetch(streamUrl);
         if(!res.ok) throw new Error();
         const clone = res.clone();
         const c = await caches.open('offline-audio-v1');
-        await c.put(`/stream/${videoId}`, clone);
+        await c.put(streamUrl, clone);
         swalToast('YT Cache tamam');
       } catch {
         swalToast('YT Cache hatası');
@@ -307,6 +314,7 @@ tracksEl.addEventListener('click', async (e)=>{
     }
   }
 });
+
 
 
 
