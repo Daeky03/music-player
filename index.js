@@ -107,7 +107,7 @@ app.get('/api/search', async (req, res) => {
 
 app.get('/stream/:videoId', async (req, res) => {
   try {
-    const yt = await Innertube.create({ cache: new UniversalCache(false), generate_session_locally: true, cookie: cookies });
+    const yt = await Innertube.create({ cache: new UniversalCache(false), generate_session_locally: true, cookie: cookies, user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36' });
     const videoId = req.params.videoId;
 
     // Audio stream alıyoruz
@@ -123,10 +123,15 @@ app.get('/stream/:videoId', async (req, res) => {
           client: 'YTMUSIC'
     });
 
-    
+    const headers: Record<string, string> = {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+        '(KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+      'Cookie': cookies
+    };
     // Streami direkt olarak yanıtla
    res.setHeader('Content-Type', 'audio/mp4');
-    const response = await fetch(stream.url);
+    const response = await fetch(stream.url, { headers });
     response.body.pipe(res);
     // Header ayarı
        // Streami gönderiyoruz
