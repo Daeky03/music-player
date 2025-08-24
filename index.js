@@ -22,7 +22,7 @@ const N_TRANSFORM_FUNC_NAME = "DisTubeNTransformFunc";
 // Aynı Python’daki regexler burada
 const VARIABLE_PART = /[a-zA-Z_\$][a-zA-Z_0-9\$]*/.source;
 
-const DECIPHER_REGEXP = /\b([a-zA-Z0-9$]{2})\s*=\s*function\(a\)\{a=a\.split\(""\);[\s\S]*?return a\.join\(""\)\}/.source;
+const DECIPHER_REGEXP = "";
 
 
 const HELPER_REGEXP = new RegExp(
@@ -37,8 +37,8 @@ function extractDecipherFunc(jsCode) {
   if (!helperMatch) throw new Error("Helper not found");
   const helperObject = helperMatch[0];
 
-  const funcMatch = jsCode.match(DECIPHER_REGEXP);
-);
+  const funcMatch = jsCode.match(/\b([a-zA-Z0-9$]{2})\s*=\s*function\(a\)\{a=a\.split\(""\);[\s\S]*?return a\.join\(""\)\}/);
+
   if (!funcMatch) throw new Error("Decipher function not found");
 
   const decipherFunc = funcMatch[0];
