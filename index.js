@@ -118,15 +118,14 @@ app.get('/stream/:videoId', async (req, res) => {
         const stream = await yt.getStreamingData(videoId, {
       type: 'audio', // audio, video or video+audio
       quality: 'best', // best, bestefficiency, 144p, 240p, 480p, 720p and so on.
-      format: 'opus', // media container format,
-      codec: 'opus',
+      format: 'mp4', // media container format,
+      codec: 'mp4a',
           client: 'YTMUSIC'
     });
 
     
     // Streami direkt olarak yanıtla
-   res.setHeader('Content-Type', 'audio/webm');
-    res.setHeader('Content-Disposition', `attachment; filename="${videoId}.opus"`);
+   res.setHeader('Content-Type', 'audio/mp4');
     const response = await fetch(stream.url);
     response.body.pipe(res);
     // Header ayarı
