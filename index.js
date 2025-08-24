@@ -14,352 +14,40 @@ import fetch from "node-fetch";
 import vm from "vm";
 import qs from "querystring";
 
-const jsoncookies = [
-    {
-        "name": "VISITOR_PRIVACY_METADATA",
-        "value": "CgJUUhIEGgAgUg%3D%3D",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": true,
-        "sameSite": "no_restriction",
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1771518937,
-        "storeId": null
-    },
-    {
-        "name": "__Secure-3PSID",
-        "value": "g.a0000gh--fY2NEEt839s7lEBOQmlD7c3bCunPDFx7cSNnuk_F6LDdA3BuM-Iicnv4Zl9zfgVBgACgYKAeISARUSFQHGX2Mii7oB97l-kLSuXuttsorLgxoVAUF8yKrtqKJtHrr0C9ki94R8xbNH0076",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": true,
-        "sameSite": "no_restriction",
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1790456335,
-        "storeId": null
-    },
-    {
-        "name": "GPS",
-        "value": "1",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": true,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1755898073,
-        "storeId": null
-    },
-    {
-        "name": "SIDCC",
-        "value": "AKEyXzXe8WicZvaE_hk0_h5uU5lMwPh1egIK_38CtfVj4-O5Gl1uU50c7jbX3wU1Ei5AvPnqbg",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": false,
-        "httpOnly": false,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1787502939,
-        "storeId": null
-    },
-    {
-        "name": "YSC",
-        "value": "6ea81Llo95A",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": true,
-        "sameSite": "no_restriction",
-        "session": true,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "storeId": null
-    },
-    {
-        "name": "SID",
-        "value": "g.a0000gh--fY2NEEt839s7lEBOQmlD7c3bCunPDFx7cSNnuk_F6LDhE5ty7UionRzN0sSsLYTSAACgYKASMSARUSFQHGX2Mi-RfnLgCR0zVgLUSjUjUS7RoVAUF8yKrLPBIQVyP9phSmln7r4oB00076",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": false,
-        "httpOnly": false,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1790456335,
-        "storeId": null
-    },
-    {
-        "name": "__Secure-1PSIDTS",
-        "value": "sidts-CjUB5H03P7n_V0Yk3SVb_V9lED6bbld0pBJagHanH_ncCIeVGwLiXZcppA3E83tBulgs8-E9GBAA",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": true,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1787432335,
-        "storeId": null
-    },
-    {
-        "name": "SAPISID",
-        "value": "K3JzDKARiNoERFCb/AAI1sh8xPfXRwOmFc",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": false,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1790456335,
-        "storeId": null
-    },
-    {
-        "name": "__Secure-1PSIDCC",
-        "value": "AKEyXzVDaTNArzPZ4Sa8XlMTLy1BTD_QzmadF8cYTiN9ArLxKS04zQE0Uym55BpYiBOIXvkz",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": true,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1787502939,
-        "storeId": null
-    },
-    {
-        "name": "SSID",
-        "value": "AkYPPMRnLdvH6JHbY",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": true,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1790456335,
-        "storeId": null
-    },
-    {
-        "name": "ST-1jr1dbr",
-        "value": "csn=TehAXaotwvjZDA19&itct=CLkBEPxaIhMIw9KRj6ifjwMVgDLxBR3rvRPLMgpnLWhpZ2gtcmVjWg9GRXdoYXRfdG9fd2F0Y2iaAQYQjh4YngHKAQQr4YsZ",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": false,
-        "httpOnly": false,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1755896494,
-        "storeId": null
-    },
-    {
-        "name": "__Secure-1PAPISID",
-        "value": "K3JzDKARiNoERFCb/AAI1sh8xPfXRwOmFc",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": false,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1790456335,
-        "storeId": null
-    },
-    {
-        "name": "__Secure-1PSID",
-        "value": "g.a0000gh--fY2NEEt839s7lEBOQmlD7c3bCunPDFx7cSNnuk_F6LDjjEIK6nl6l9jWIUif7b74QACgYKAXYSARUSFQHGX2MiSlOLRzTblvjLid_eQ_AhVBoVAUF8yKqGkNjh0ZncyASbzy5G_DPB0076",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": true,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1790456335,
-        "storeId": null
-    },
-    {
-        "name": "__Secure-3PAPISID",
-        "value": "K3JzDKARiNoERFCb/AAI1sh8xPfXRwOmFc",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": false,
-        "sameSite": "no_restriction",
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1790456335,
-        "storeId": null
-    },
-    {
-        "name": "__Secure-3PSIDCC",
-        "value": "AKEyXzWBrl0E5bH5FcLUdK2ucjzv-DfS6xBq-PU3pzzNm55mMySFx_DdrD9j87ayE9Dzdh8-aQ",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": true,
-        "sameSite": "no_restriction",
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1787502939,
-        "storeId": null
-    },
-    {
-        "name": "__Secure-3PSIDTS",
-        "value": "sidts-CjUB5H03P7n_V0Yk3SVb_V9lED6bbld0pBJagHanH_ncCIeVGwLiXZcppA3E83tBulgs8-E9GBAA",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": true,
-        "sameSite": "no_restriction",
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1787432335,
-        "storeId": null
-    },
-    {
-        "name": "APISID",
-        "value": "uOZ24HyZpmKO1x6J/ALCBHyUZHW8RA7fHe",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": false,
-        "httpOnly": false,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1790456335,
-        "storeId": null
-    },
-    {
-        "name": "HSID",
-        "value": "AhhwDZ8B8ONwaSDWW",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": false,
-        "httpOnly": true,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1790456335,
-        "storeId": null
-    },
-    {
-        "name": "LOGIN_INFO",
-        "value": "AFmmF2swRAIgJwHIaTLdATeeira2DSeM0_T_W3y6O1im8vxQIuvuBtECIH0kxIQ5otHk0sdhXMHrEsLG0rzDxCKPzP6-5AqIhu-3:QUQ3MjNmemlSTWtMQzRpYVJUOXF4TnpNWHM5Mzk5aUwxYUd4SnJiR014d3JIY3JfQ05CRTNoeDh6R3QtcmNEMkRSWlRZTjByV0l4UmxUX3FnVFBGSG5ncHd0TDVQUzByQzVxYTBiVGpiQ3hvcktOa0I5c0x3Tm4yNWc4Yk5LRTlzUS1ldmpXb3JzcDRUNExKZl9nQXZETXVUSWtMSDRURUJzS0w4VnFJOGRyLXliRXBOR29idDl6Um5tdTBIM18tR253cERQV0g5cjN0cHhCRTh6a3ZmNHF0aFlHZDRBZnRKdw==",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": true,
-        "sameSite": "no_restriction",
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1790456336,
-        "storeId": null
-    },
-    {
-        "name": "PREF",
-        "value": "f6=40000000&tz=Europe.Istanbul&f5=30000&f7=100",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": false,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1790526938,
-        "storeId": null
-    },
-    {
-        "name": "ST-1fy5w0p",
-        "value": "csn=Gkv_ULDr7KqQyQ27&itct=CH0Q_FoiEwiwoKD_p5-PAxV_eXoFHYwgDtwyCmctaGlnaC1yZWNaD0ZFd2hhdF90b193YXRjaJoBBhCOHhieAcoBBCvhixk%3D",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": false,
-        "httpOnly": false,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1755896470,
-        "storeId": null
-    },
-    {
-        "name": "ST-stt7tm",
-        "value": "csn=Gkv_ULDr7KqQyQ27&itct=CHQQh_YEGAEiEwiwoKD_p5-PAxV_eXoFHYwgDtxaD0ZFd2hhdF90b193YXRjaJoBBQgkEI4eygEEK-GLGQ%3D%3D",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": false,
-        "httpOnly": false,
-        "sameSite": null,
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1755896460,
-        "storeId": null
-    },
-    {
-        "name": "VISITOR_INFO1_LIVE",
-        "value": "qZTuqYA6BiM",
-        "domain": ".youtube.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": true,
-        "sameSite": "no_restriction",
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1771518937,
-        "storeId": null
-    }
-]
+
+// youtube-decipher.js
+const DECIPHER_FUNC_NAME = "DisTubeDecipherFunc";
+const N_TRANSFORM_FUNC_NAME = "DisTubeNTransformFunc";
+
+// Aynı Python’daki regexler burada
+const VARIABLE_PART = /[a-zA-Z_\$][a-zA-Z_0-9\$]*/.source;
+
+const DECIPHER_REGEXP = new RegExp(
+  `function(?: ${VARIABLE_PART})?\\(([a-zA-Z])\\)\\{` +
+  `\\1=\\1\\.split\\(""\\);\\s*` +
+  `((?:(?:\\1=)?${VARIABLE_PART}(?:\\["|\\.)${VARIABLE_PART}(?:\\"\\]|)\\(\\1,\\d+\\);)+)` +
+  `return \\1\\.join\\(""\\)` +
+  `\\}`
+, "s");
+
+const HELPER_REGEXP = new RegExp(
+  `var (${VARIABLE_PART})=\\{((?:.*?))\\};`, "s"
+);
+
+// Fonksiyon çıkartma
+function extractDecipherFunc(jsCode) {
+  const helperMatch = jsCode.match(HELPER_REGEXP);
+  if (!helperMatch) throw new Error("Helper not found");
+  const helperObject = helperMatch[0];
+
+  const funcMatch = jsCode.match(DECIPHER_REGEXP);
+  if (!funcMatch) throw new Error("Decipher function not found");
+
+  const decipherFunc = funcMatch[0];
+  return `${helperObject};var ${DECIPHER_FUNC_NAME}=${decipherFunc};`;
+}
+
+
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -418,7 +106,7 @@ app.get('/stream/:videoId', async (req, res) => {
 
     // Header ayarı
        // Streami gönderiyoruz
-    
+    const video = videoInfo.streaming_data.adaptive_formats[0];
 
 
 
@@ -430,24 +118,11 @@ async function getPlayerJsUrl(html) {
     return "https://www.youtube.com" + match[1];
 }
 
-async function getPlayerFunction(playerJsUrl) {
-    const res = await fetch(playerJsUrl);
-    const js = await res.text();
 
-    // s parametresini çözen fonksiyonu regex ile bul
-    const fnNameMatch = js.match(/\.sig\|\|([a-zA-Z0-9$]+)\(/);
-    if (!fnNameMatch) throw new Error("Cipher fonksiyonu bulunamadı");
-    const fnName = fnNameMatch[1];
+    
+    
+    
 
-    const fnBodyMatch = js.match(new RegExp(`${fnName}=function\\(a\\){(.*?)}`));
-    if (!fnBodyMatch) throw new Error("Cipher fonksiyon gövdesi bulunamadı");
-    const fnBody = `function ${fnName}(a){${fnBodyMatch[1]}}`;
-
-    const sandbox = {};
-    vm.createContext(sandbox);
-    vm.runInContext(fnBody, sandbox);
-    return sandbox[fnName];
-}
 
 function decryptFormats(formats, decipher) {
     return formats.map(f => {
@@ -472,17 +147,27 @@ const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
 
       const playerJsUrl = await getPlayerJsUrl(html);
 console.log(playerJsUrl);
-    const decipher = await getPlayerFunction(playerJsUrl);
+    const res = await fetch(playerJsUrl);
+    const js = await res.text();
 
+    // s parametresini çözen fonksiyonu regex ile bul
+const decipherScript = extractDecipherFunc(js);
+
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(decipherScript, sandbox);
+    
+    const params = new URLSearchParams(video.signature_cipher);
+
+const s = params.get("s");   // <-- burası işine yarayacak
+const sp = params.get("sp");
+const url = params.get("url");
+      const result = sandbox.DisTubeDecipherFunc(s);
+  console.log("Decrypted:", result);
     // URL'leri çöz
     
 
-        const decrypted = decryptFormats(videoInfo.streaming_data.adaptive_formats, decipher)
-
-
-    console.log(decrypted);
-
-res.json({ decrypted })
+        
 
       
     
