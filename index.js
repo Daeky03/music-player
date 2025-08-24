@@ -127,10 +127,12 @@ app.get('/stream/:videoId', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${videoId}.m4a"`);
 
     // Streami direkt olarak yanıtla
-    stream.pipe(res);
+        for await (const chunk of Utils.streamToIterable(stream)) {
+      res.write(chunk);
+        }
     // Header ayarı
        // Streami gönderiyoruz
- 
+ res.end();
       
     
   } catch (err) {
