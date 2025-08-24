@@ -153,6 +153,31 @@ app.get('/stream/:videoId', async (req, res) => {
 });
 
 
+app.get('/info/:videoId', async (req, res) => {
+  try {
+    const yt = await Innertube.create({ cache: new UniversalCache(false), generate_session_locally: true, cookie: cookies, user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36' });
+    const videoId = req.params.videoId;
+
+    // Audio stream alıyoruz
+    
+const result = await yt.getBasicInfo(videoId);
+        
+        
+      res.json({ result });
+    // Header ayarı
+       // Streami gönderiyoruz
+
+      
+    
+  } catch (err) {
+    console.error(err);
+    if (!res.headersSent) {
+      res.status(500).send('Internal server error');
+    }
+  }
+});
+
+
 
 
 
