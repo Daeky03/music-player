@@ -1,30 +1,46 @@
-<!-- index.ejs — Lark-style content -->
-<div class="space-y-4">
-  <!-- search + quick results -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    <div class="rounded-xl p-3 bg-white/70 dark:bg-white/3">
-      <h3 class="text-sm font-semibold mb-2">Arama</h3>
-      <div class="flex gap-2">
-        <input id="searchInput" placeholder="Şarkı, sanatçı veya YouTube linki" class="flex-1 rounded-lg px-3 py-2 bg-white/60 dark:bg-bgsoft/60 outline-none"/>
-        <button id="searchBtnLocal" class="px-4 py-2 rounded-lg bg-accent text-white">Ara</button>
+<div class="grid grid-cols-1 md:grid-cols-[320px,1fr] gap-4">
+  <!-- Sol panel: Playlists + create -->
+  <aside class="space-y-4">
+    <div class="bg-white/80 dark:bg-panel/80 p-4 rounded-xl2 shadow-glass">
+      <div class="flex items-center gap-2 mb-3">
+        <input id="mainSearch" placeholder="Ara: şarkı, sanatçı, YouTube" class="flex-1 px-3 py-2 rounded-full bg-black/5 dark:bg-white/8 outline-none" />
+        <button id="searchBtn" class="px-3 py-2 rounded-full bg-accent text-white">Ara</button>
       </div>
-      <p class="text-xs text-slate-500 dark:text-white/50 mt-2">YouTube sonuçları ve önbelleğe alma destekli çalma.</p>
+
+      <div class="mb-2 flex items-center justify-between">
+        <h3 class="font-semibold">Çalma Listeleri</h3>
+        <button id="createPlBtn" class="text-xs px-2 py-1 rounded-full bg-white/10">Oluştur</button>
+      </div>
+
+      <div id="playlistsGrid" class="space-y-2"></div>
+
+      <div class="mt-4 text-xs text-gray-500 dark:text-white/50">
+        İlk kullanımda otomatik bir playlist oluşturulur. Playlist kapak resmi URL'siyle güncellenebilir.
+      </div>
     </div>
 
-    <div class="rounded-xl p-3 bg-white/70 dark:bg-white/3">
-      <h3 class="text-sm font-semibold mb-2">Hızlı Erişim</h3>
-      <div class="flex gap-2 flex-wrap">
-        <button class="px-3 py-2 rounded-lg bg-white/10">Popüler</button>
-        <button class="px-3 py-2 rounded-lg bg-white/10">Yeni</button>
-        <button class="px-3 py-2 rounded-lg bg-white/10">Kütüphane</button>
-      </div>
+    <div id="cachedPanel" class="bg-white/80 dark:bg-panel/80 p-3 rounded-xl2 shadow-glass">
+      <h4 class="font-semibold mb-2">İndirilenler (Çevrimdışı)</h4>
+      <div id="cachedList" class="space-y-2 text-sm text-gray-600 dark:text-white/60"></div>
     </div>
-  </div>
+  </aside>
 
-  <!-- Results list -->
-  <div class="rounded-xl p-3 bg-white/70 dark:bg-white/3">
-    <h3 class="text-sm font-semibold mb-3">Arama Sonuçları</h3>
-    <div id="tracks" class="grid gap-3"></div>
-    <div id="noResults" class="text-sm text-slate-500 hidden mt-2">Sonuç yok — birşeyler ara.</div>
-  </div>
+  <!-- Sağ panel: sonuçlar / playlist detay -->
+  <section class="space-y-4">
+    <div id="homeArea" class="bg-white/80 dark:bg-panel/80 p-4 rounded-xl2 shadow-glass">
+      <h2 class="text-lg font-semibold mb-3">Öneriler & Sonuçlar</h2>
+      <div id="results" class="space-y-2"></div>
+    </div>
+
+    <div id="playlistDetail" class="hidden bg-white/80 dark:bg-panel/80 p-4 rounded-xl2 shadow-glass">
+      <div class="flex items-center gap-4 mb-3">
+        <img id="detailCover" src="/icons/icon-512.png" class="w-20 h-20 rounded-lg object-cover"/>
+        <div>
+          <div id="detailName" class="font-semibold text-lg">Playlist</div>
+          <div id="detailCount" class="text-xs text-gray-500">0 parça</div>
+        </div>
+      </div>
+      <ul id="detailTracks" class="space-y-2"></ul>
+    </div>
+  </section>
 </div>
