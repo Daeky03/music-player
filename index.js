@@ -108,7 +108,7 @@ app.get('/api/search', async (req, res) => {
 
 app.get('/stream/:videoId', async (req, res) => {
   try {
-    const yt = await Innertube.create({ cache: new UniversalCache(false), generate_session_locally: true });
+    const yt = await Innertube.create({ cache: new UniversalCache(false), generate_session_locally: true, cookie: cookies });
     const videoId = req.params.videoId;
 
     // Audio stream alıyoruz
@@ -116,23 +116,22 @@ app.get('/stream/:videoId', async (req, res) => {
 
       console.log(videoInfo);
 
-        const stream = await yt.download(videoId, {
+        const stream = await yt.getStreamingData(videoId, {
       type: 'audio', // audio, video or video+audio
       quality: 'best', // best, bestefficiency, 144p, 240p, 480p, 720p and so on.
       format: 'opus', // media container format,
-      client: 'YTMUSIC'
+      codec: 'opus',
+          client: 'YTMUSIC'
     });
 
     res.setHeader('Content-Type', 'audio/opus');
     res.setHeader('Content-Disposition', `attachment; filename="${videoId}.opus"`);
 
     // Streami direkt olarak yanıtla
-        for await (const chunk of Utils.streamToIterable(stream)) {
-      res.write(chunk);
-        }
+   stream.pipe(res);
     // Header ayarı
        // Streami gönderiyoruz
- res.end();
+
       
     
   } catch (err) {
