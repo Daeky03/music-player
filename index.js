@@ -108,7 +108,7 @@ app.get('/api/search', async (req, res) => {
 
 app.get('/stream/:videoId', async (req, res) => {
   try {
-    const yt = await Innertube.create({ cache: new UniversalCache(false), generate_session_locally: true, cookie: cookies });
+    const yt = await Innertube.create({ cache: new UniversalCache(false), generate_session_locally: true });
     const videoId = req.params.videoId;
 
     // Audio stream alıyoruz
