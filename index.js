@@ -10,6 +10,9 @@ import cors from 'cors';
 import axios from "axios";
 import { Innertube, UniversalCache, Utils } from 'youtubei.js';
 import ytdl from '@distube/ytdl-core';
+import fetch from "node-fetch";
+import vm from "vm";
+import qs from "querystring";
 
 const jsoncookies = [
     {
@@ -415,8 +418,73 @@ app.get('/stream/:videoId', async (req, res) => {
 
     // Header ayarı
        // Streami gönderiyoruz
-    res.json({ info: videoInfo.streaming_data.adaptive_formats })
+    
 
+
+
+
+async function getPlayerJsUrl(html) {
+    const regex = /"jsUrl":"([^"]+)"/;
+    const match = html.match(regex);
+    if (!match) throw new Error("Player.js URL bulunamadı");
+    return "https://www.youtube.com" + match[1];
+}
+
+async function getPlayerFunction(playerJsUrl) {
+    const res = await fetch(playerJsUrl);
+    const js = await res.text();
+
+    // s parametresini çözen fonksiyonu regex ile bul
+    const fnNameMatch = js.match(/\.sig\|\|([a-zA-Z0-9$]+)\(/);
+    if (!fnNameMatch) throw new Error("Cipher fonksiyonu bulunamadı");
+    const fnName = fnNameMatch[1];
+
+    const fnBodyMatch = js.match(new RegExp(`${fnName}=function\\(a\\){(.*?)}`));
+    if (!fnBodyMatch) throw new Error("Cipher fonksiyon gövdesi bulunamadı");
+    const fnBody = `function ${fnName}(a){${fnBodyMatch[1]}}`;
+
+    const sandbox = {};
+    vm.createContext(sandbox);
+    vm.runInContext(fnBody, sandbox);
+    return sandbox[fnName];
+}
+
+function decryptFormats(formats, decipher) {
+    return formats.map(f => {
+        if (f.signatureCipher) {
+            const params = qs.parse(f.signatureCipher);
+            const sig = decipher(params.s);
+            f.url = params.url + "&sig=" + sig;
+            delete f.signatureCipher;
+        }
+        return f;
+    });
+}
+
+const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+        headers: {
+            'Cookie': cookies,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9'
+        }
+    });
+    const html = await response.text();
+
+      const playerJsUrl = await getPlayerJsUrl(html);
+
+    const decipher = await getPlayerFunction(playerJsUrl);
+
+    // URL'leri çöz
+    
+
+        const decrypted = decryptFormats(videoInfo.streaming_data.adaptive_formats, decipher)
+
+
+    console.log(decrypted);
+
+res.json({ decrypted })
+
+      
     
   } catch (err) {
     console.error(err);
