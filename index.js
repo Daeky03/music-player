@@ -13,7 +13,10 @@ import ytdl from '@distube/ytdl-core';
 import fetch from "node-fetch";
 import vm from "vm";
 import qs from "querystring";
+import { pipeline } from 'stream';
+import { promisify } from 'util';
 
+const pipe = promisify(pipeline);
 
 // youtube-decipher.js
 const DECIPHER_FUNC_NAME = "DisTubeDecipherFunc";
@@ -124,7 +127,7 @@ app.get('/stream/:videoId', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${videoId}.mp4"`);
 
     // Streami direkt olarak yanıtla
-    stream.pipe(res);
+  await pipe(stream, res);
     // Header ayarı
        // Streami gönderiyoruz
  
