@@ -1,13 +1,14 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr" class="h-full">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SLP — Smart Listening Player</title>
-  <meta name="theme-color" content="#0b1020" />
-  <link rel="manifest" href="/manifest.json" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-  <!-- Tailwind CDN -->
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>SLP — Lark Style Player</title>
+  <link rel="manifest" href="/manifest.json"/>
+  <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
+  <meta name="theme-color" content="#0b1220"/>
+
+  <!-- Tailwind (CDN for dev) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -15,123 +16,129 @@
       theme: {
         extend: {
           colors: {
-            ink: '#0b0b0f',
-            panel: '#0f1724',
-            accent: '#7c3aed',
-            accent2: '#a78bfa',
-            lightBg: '#f3f4f6'
+            accent: '#ff6b6b',
+            accent2: '#ff9472',
+            bgsoft: '#0b0f1a',
+            panel: '#081026'
           },
-          boxShadow: {
-            glass: '0 8px 30px rgba(12, 14, 20, 0.45)'
-          }
+          boxShadow: { soft: '0 10px 30px rgba(2,6,23,0.6)' },
+          borderRadius: { 'full-xl': '1.25rem' }
         }
       }
     };
-    // Prevent FOUC for theme
-    (function(){
-      const theme = localStorage.getItem('theme') || 'dark';
-      if(theme === 'dark') document.documentElement.classList.add('dark');
-    })();
+    // prevent FOUC
+    (function(){ const t = localStorage.getItem('theme')||'dark'; if(t==='dark') document.documentElement.classList.add('dark'); })();
   </script>
 
   <style>
-    /* subtle scrollbar */
-    ::-webkit-scrollbar { height:10px; width:10px; }
-    ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius:999px; }
-    .glass-card { background: linear-gradient(180deg, rgba(255,255,255,0.75), rgba(255,255,255,0.6)); }
-    .dark .glass-card { background: linear-gradient(180deg, rgba(20,20,28,0.65), rgba(8,9,12,0.6)); }
+    /* extra small styling for player */
+    .control-btn { width:52px; height:52px; display:inline-grid; place-items:center; border-radius:999px; }
+    .control-btn--big { width:72px; height:72px; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:14px; height:14px; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.35); }
+    input[type="range"]::-moz-range-thumb { width:14px; height:14px; border-radius:50%; background:#fff; border: none; }
+    /* text ellipsis helper */
+    .truncate-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   </style>
 </head>
-<body class="h-full bg-lightBg dark:bg-ink dark:text-white text-slate-900">
+<body class="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-bgsoft dark:to-panel text-slate-900 dark:text-white">
   <div class="min-h-screen flex flex-col">
-    <header class="w-full border-b border-gray-200 dark:border-white/6 bg-white/80 dark:bg-panel/85 backdrop-blur">
-      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+    <!-- header -->
+    <header class="w-full border-b border-slate-200 dark:border-white/6 bg-white/80 dark:bg-bgsoft/80 backdrop-blur">
+      <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <img src="/icons/icon-192.png" alt="SLP" class="w-10 h-10 rounded-lg shadow-sm"/>
+          <img src="/icons/icon-192.png" class="w-10 h-10 rounded-lg shadow-sm" alt="logo"/>
           <div>
-            <h1 class="text-xl font-semibold tracking-tight">SLP</h1>
-            <p class="text-xs text-gray-500 dark:text-white/50 -mt-0.5">Smart Listening Player</p>
+            <div class="font-semibold text-lg">SLP</div>
+            <div class="text-xs text-slate-500 dark:text-white/50">Lark-inspired Player</div>
           </div>
         </div>
+
         <div class="flex items-center gap-2">
-          <button id="themeToggle" class="px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/8 hover:scale-105 transition">Tema: <span id="themeLabel">Koyu</span></button>
-          <button id="installBtn" class="hidden px-3 py-1.5 rounded-full bg-accent text-white hover:bg-accent2 transition">Yükle</button>
+          <button id="themeToggle" class="px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/6">Tema: <span id="themeLabel">Koyu</span></button>
+          <button id="installBtn" class="hidden px-3 py-1.5 rounded-full bg-accent text-white">Yükle</button>
         </div>
       </div>
     </header>
 
-    <main class="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
-      <div class="rounded-2xl p-4 glass-card shadow-glass">
-        <!-- top hero: search -->
-        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div class="flex-1">
-            <input id="search" placeholder="Ara: şarkı, sanatçı veya YouTube linki" class="w-full rounded-xl px-4 py-3 bg-white/60 dark:bg-white/4 outline-none placeholder:opacity-60" />
-          </div>
-          <div class="flex gap-2 items-center">
-            <button id="searchBtn" class="px-4 py-3 rounded-xl bg-accent text-white hover:bg-accent2">Ara</button>
-            <button id="micBtn" class="p-3 rounded-xl bg-black/5 dark:bg-white/6" title="Sesle ara (gelecek)">
-              <!-- mic svg -->
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/><path d="M19 11v1a7 7 0 0 1-14 0v-1"/></svg>
-            </button>
-          </div>
-        </div>
+    <!-- main content area -->
+    <main class="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr,360px] gap-6">
+        <!-- content (index.ejs injected here) -->
+        <section class="space-y-4">
+          <%- include(content) %>
+        </section>
 
-        <div class="mt-6 grid md:grid-cols-[260px,1fr] gap-4">
-          <aside class="rounded-xl p-3 bg-white/40 dark:bg-white/3">
-            <nav class="flex flex-col gap-2">
-              <button id="tab-library" class="w-full text-left px-3 py-2 rounded-lg bg-black/5 dark:bg-white/8">Kütüphane</button>
-              <button id="tab-playlists" class="w-full text-left px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/8">Çalma Listeleri</button>
-              <button id="tab-downloaded" class="w-full text-left px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/8">İndirilenler</button>
-            </nav>
+        <!-- right column: big player + playlists -->
+        <aside class="sticky top-6">
+          <div class="bg-white/70 dark:bg-white/3 rounded-2xl p-4 shadow-soft drop-shadow-sm">
+            <!-- Big artwork & controls (Lark-like) -->
+            <div class="flex flex-col items-center gap-4">
+              <div id="bigArtWrap" class="w-56 h-56 rounded-2xl overflow-hidden bg-black/5">
+                <img id="npArt" src="/icons/icon-512.png" class="w-full h-full object-cover"/>
+              </div>
 
-            <div class="mt-4 space-y-2">
-              <button id="newPlaylistBtn" class="w-full px-3 py-2 rounded-full bg-accent text-white">Yeni Playlist</button>
-              <button id="notifyPermBtn" class="w-full px-3 py-2 rounded-full bg-white/10 dark:bg-white/6">Bildirim izni</button>
+              <div class="text-center">
+                <div id="npTitle" class="font-semibold truncate-2 max-w-[220px]">Çalan yok</div>
+                <div id="npArtist" class="text-sm text-slate-500 dark:text-white/60">—</div>
+              </div>
+
+              <div class="w-full">
+                <div class="flex items-center gap-3 justify-center">
+                  <button id="btnPrev" class="control-btn bg-white/5 hover:bg-white/10" title="Önceki">
+                    <!-- prev -->
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6v12l8.5-6L6 6zm10 0v12h2V6h-2z"/></svg>
+                  </button>
+
+                  <button id="btnRew" class="control-btn bg-white/5 hover:bg-white/10" title="-10s">-10</button>
+
+                  <button id="btnPlay" class="control-btn control-btn--big bg-accent text-white shadow-lg transform active:scale-95" title="Oynat">
+                    <svg id="playIcon" class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3v18l15-9z"/></svg>
+                  </button>
+
+                  <button id="btnFf" class="control-btn bg-white/5 hover:bg-white/10" title="+10s">+10</button>
+
+                  <button id="btnNext" class="control-btn bg-white/5 hover:bg-white/10" title="Sonraki">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 12 5 19V5l8.5 7zM19 5v14h-2V5h2z"/></svg>
+                  </button>
+                </div>
+
+                <div class="mt-4 flex items-center gap-3">
+                  <span id="npCur" class="text-xs w-10 text-right">0:00</span>
+                  <input id="seek" type="range" min="0" max="100" value="0" class="flex-1"/>
+                  <span id="npDur" class="text-xs w-10">0:00</span>
+                </div>
+
+                <div class="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-white/50">
+                  <div class="flex items-center gap-2">
+                    <button id="btnRepeat" class="px-2 py-1 rounded-full bg-white/6">⟲</button>
+                    <button id="btnShuffle" class="px-2 py-1 rounded-full bg-white/6">🔀</button>
+                  </div>
+                  <div>SLP</div>
+                </div>
+              </div>
             </div>
+          </div>
 
-            <div class="mt-6">
-              <h3 class="text-xs text-slate-500 dark:text-white/50 uppercase tracking-wide mb-2">Hızlı</h3>
-              <ul class="space-y-2 text-sm">
-                <li><a href="#" class="flex items-center gap-2 text-gray-700 dark:text-white/80"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6"/></svg> Çalan</a></li>
-                <li><a href="#" class="flex items-center gap-2 text-gray-700 dark:text-white/80"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10"/></svg> Popüler</a></li>
-              </ul>
+          <!-- playlists / downloads panel -->
+          <div class="mt-4 bg-white/60 dark:bg-white/3 rounded-2xl p-3 shadow-soft">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-sm font-medium">Çalma Listeleri</div>
+              <button id="newPlaylistBtn" class="text-xs px-2 py-1 rounded-full bg-accent text-white">Yeni</button>
             </div>
-          </aside>
-
-          <section class="space-y-4">
-            <%- include(content) %>
-          </section>
-        </div>
+            <ul id="playlistList" class="space-y-2"></ul>
+          </div>
+        </aside>
       </div>
     </main>
 
-    <!-- Player bar fixed bottom -->
-    <div id="playerBar" class="fixed inset-x-0 bottom-4 pointer-events-auto">
-      <div class="max-w-3xl mx-auto px-4">
-        <div id="miniPlayer" class="rounded-2xl bg-white/90 dark:bg-panel/90 p-3 flex items-center gap-3 shadow-glass">
-          <img id="npArtMini" src="/icons/icon-192.png" class="w-12 h-12 rounded-lg object-cover"/>
-          <div class="flex-1 min-w-0">
-            <div id="npTitleMini" class="truncate font-medium">Çalan yok</div>
-            <div id="npArtistMini" class="truncate text-xs text-gray-600 dark:text-white/60">—</div>
-          </div>
-          <div class="flex items-center gap-2">
-            <button id="btnMiniRew" class="p-2 rounded-full bg-white/10">⟲10</button>
-            <button id="btnMiniPrev" class="p-2 rounded-full bg-white/10">⏮</button>
-            <button id="btnMiniPlay" class="px-4 py-2 rounded-full bg-accent text-white">▶</button>
-            <button id="btnMiniNext" class="p-2 rounded-full bg-white/10">⏭</button>
-            <button id="btnExpand" class="p-2 rounded-full bg-white/10">⤢</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <audio id="audioEl" preload="metadata"></audio>
-
-    <footer class="mt-10 py-6 text-center text-xs text-gray-500 dark:text-white/50">
-      © <%= new Date().getFullYear() %> SLP — Built with ♥
+    <footer class="py-6 text-center text-xs text-slate-500 dark:text-white/50">
+      © <%= new Date().getFullYear() %> SLP — Lark-inspired skin
     </footer>
   </div>
 
-  <script src="/js/app.js" type="module"></script>
+  <audio id="audioEl" preload="metadata"></audio>
+
+  <!-- app.js -->
+  <script type="module" src="/js/app.js"></script>
 </body>
 </html>
