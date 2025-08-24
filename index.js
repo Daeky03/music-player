@@ -109,7 +109,7 @@ app.get('/stream/:videoId', async (req, res) => {
     const videoId = req.params.videoId;
 
     // Audio stream alıyoruz
-    const videoInfo = await yt.getInfo(videoId, { client: 'YTMusic' });
+    const videoInfo = await yt.getInfo(videoId, { client: 'YTMUSIC' });
 
       console.log(videoInfo);
 
@@ -124,7 +124,7 @@ app.get('/stream/:videoId', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${songId}.mp4"`);
 
     // Streami direkt olarak yanıtla
-    await pipe(stream, res);
+    stream.pipe(res);
     // Header ayarı
        // Streami gönderiyoruz
  
