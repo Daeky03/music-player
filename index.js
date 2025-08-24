@@ -111,9 +111,7 @@ app.get('/stream/:videoId', async (req, res) => {
     const videoId = req.params.videoId;
 
     // Audio stream alıyoruz
-    const videoInfo = await yt.getInfo(videoId, { client: 'WEB_EMBEDDED' });
-
-      console.log(videoInfo);
+    
 
         const stream = await yt.getStreamingData(videoId, {
       type: 'audio', // audio, video or video+audio
@@ -122,16 +120,24 @@ app.get('/stream/:videoId', async (req, res) => {
           client: 'WEB_EMBEDDED'
     });
 
-    
+    let range = 'bytes=0-';
     // Streami direkt olarak yanıtla
    res.setHeader('Content-Type', 'audio/mp4');
     const response = await fetch(stream.url, { headers: {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-      'Cookie': cookies
+      'Cookie': cookies,
+      'Range': range
     }
         });
-    console.log(response.status);
+    const contentRange = response.headers.get('content-range');
+    const contentLength = response.headers.get('content-length');
+    
+  res.setHeader('Content-Range', contentRange);
+      res.setHeader('Content-Length', contentLength);
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Type', 'audio/mp4');
+    
     response.body.pipe(res);
     // Header ayarı
        // Streami gönderiyoruz
