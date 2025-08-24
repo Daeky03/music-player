@@ -127,7 +127,7 @@ app.get('/stream/:videoId', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${videoId}.mp4"`);
 
     // Streami direkt olarak yanıtla
-  await pipe(stream, res);
+  res.end(stream);
     // Header ayarı
        // Streami gönderiyoruz
  
