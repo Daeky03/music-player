@@ -126,7 +126,7 @@ app.get('/stream/:videoId', async (req, res) => {
     
     // Streami direkt olarak yanıtla
    res.setHeader('Content-Type', 'audio/webm');
-    res.setHeader('Content-Disposition', `attachment; filename="${videoId}.webm"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${videoId}.opus"`);
     const response = await fetch(stream.url);
     response.body.pipe(res);
     // Header ayarı
