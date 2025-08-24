@@ -291,7 +291,7 @@ tracksEl.addEventListener('click', async (e) => {
   const videoId = params.get("v");
         
       
-        if (data.audioUrl) {
+        if (videoId) {
           audio.src = `/stream/${videoId}`;
           audio.play();
         }
