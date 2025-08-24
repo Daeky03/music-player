@@ -185,29 +185,28 @@ audio.addEventListener('ended', ()=>{ if(repeat==='one'){ audio.currentTime=0; a
 async function renderLibrary(filter=''){
   tracksEl.innerHTML='';
 
-  // 1️⃣ Local tracks
   const list = tracks.filter(t => (t.title + ' ' + (t.artist||'')).toLowerCase().includes(filter.toLowerCase()));
+  
   list.forEach(t=>{
     const row = document.createElement('div'); 
-    row.className = 'flex items-center justify-between p-3 mb-2 rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all';
+    row.className = 'flex flex-col sm:flex-row items-center justify-between p-3 mb-2 rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all';
     row.innerHTML = `
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 w-full sm:w-auto">
         <img src="${t.artwork||'/icons/icon-192.png'}" class="w-12 h-12 rounded-lg object-cover"/>
-        <div>
+        <div class="ml-2 truncate">
           <div class="font-medium truncate">${t.title}</div>
           <div class="text-xs text-gray-600 dark:text-white/60 truncate">${t.artist||''}</div>
         </div>
       </div>
-      <div class="flex items-center gap-2">
-        <button data-id="${t.id}" class="play px-3 py-1.5 rounded-full bg-accent text-white hover:bg-accent-dark">Çal</button>
-        <button data-id="${t.id}" class="addpl px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20">Playlist</button>
-        <button data-id="${t.id}" class="cache px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20">Cache</button>
+      <div class="flex items-center gap-2 mt-2 sm:mt-0">
+        <button data-id="${t.id}" class="play btn"><i class="fas fa-play"></i></button>
+        <button data-id="${t.id}" class="addpl btn"><i class="fas fa-plus"></i></button>
+        <button data-id="${t.id}" class="cache btn"><i class="fas fa-download"></i></button>
       </div>
     `;
     tracksEl.appendChild(row);
   });
 
-  // 2️⃣ YouTube araması
   if(filter.trim()){
     try {
       const res = await fetch(`/api/search?q=${encodeURIComponent(filter)}`);
@@ -216,19 +215,19 @@ async function renderLibrary(filter=''){
 
       ytResults.forEach(t=>{
         const row = document.createElement('div'); 
-        row.className = 'flex items-center justify-between p-3 mb-2 rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all';
+        row.className = 'flex flex-col sm:flex-row items-center justify-between p-3 mb-2 rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all';
         row.innerHTML = `
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-3 w-full sm:w-auto">
             <img src="${t.thumbnail}" class="w-12 h-12 rounded-lg object-cover"/>
-            <div>
+            <div class="ml-2 truncate">
               <div class="font-medium truncate">${t.title}</div>
               <div class="text-xs text-gray-600 dark:text-white/60 truncate">${t.author}</div>
             </div>
           </div>
-          <div class="flex items-center gap-2">
-            <button data-link="${t.url}" class="play px-3 py-1.5 rounded-full bg-accent text-white hover:bg-accent-dark">Çal</button>
-            <button data-link="${t.url}" class="addpl px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20">Playlist</button>
-            <button data-link="${t.url}" class="cache-yt px-3 py-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20">Cache</button>
+          <div class="flex items-center gap-2 mt-2 sm:mt-0">
+            <button data-link="${t.url}" class="play btn"><i class="fas fa-play"></i></button>
+            <button data-link="${t.url}" class="addpl btn"><i class="fas fa-plus"></i></button>
+            <button data-link="${t.url}" class="cache-yt btn"><i class="fas fa-download"></i></button>
           </div>
         `;
         tracksEl.appendChild(row);
@@ -239,33 +238,20 @@ async function renderLibrary(filter=''){
   }
 }
 
-// Playlist'e ekleme
-async function addToPlaylistDialog(trackIdOrUrl){
-  if(playlists.length===0){ swalToast('Önce playlist oluştur'); return; }
-  const options = playlists.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
-  const { isConfirmed, value:plId } = await Swal.fire({
-    title:'Playlist seç',
-    html:`<select id="pl-select" class="swal2-select">${options}</select>`,
-    preConfirm: ()=> document.getElementById('pl-select').value,
-    showCancelButton:true, confirmButtonText:'Ekle', background:'#12121a', color:'#fff'
-  });
-  if(!isConfirmed) return;
-  const pl = playlists.find(p=>p.id===plId); if(!pl) return;
-  if(!pl.items.includes(trackIdOrUrl)) pl.items.push(trackIdOrUrl);
-  save(LS_PLAYLISTS, playlists); renderPlaylists(); swalToast('Eklendi');
-}
-
-// Event listener
 tracksEl.addEventListener('click', async (e) => {
   const btn = e.target.closest('button');
   if (!btn) return;
 
-  // Local track
   const id = btn.dataset.id;
   if (id) {
     const t = tracks.find(x => x.id === id);
     if (!t) return;
-    if (btn.classList.contains('play')) setQueue([id], 0);
+
+    if (btn.classList.contains('play')) {
+      setQueue([id], 0); // ilk şarkı atlamasın
+      audio.src = t.url;
+      audio.play();
+    }
     if (btn.classList.contains('addpl')) addToPlaylistDialog(id);
     if (btn.classList.contains('cache')) {
       try {
@@ -282,7 +268,6 @@ tracksEl.addEventListener('click', async (e) => {
     }
   }
 
-  // YouTube track
   const url = btn.dataset.link;
   if (url) {
     const params = new URL(url).searchParams;
@@ -290,14 +275,10 @@ tracksEl.addEventListener('click', async (e) => {
     if (!videoId) return;
 
     if (btn.classList.contains('play')) {
-      audio.src = `/stream/${videoId}`; // mp4a endpoint
+      audio.src = `/stream/${videoId}`;
       audio.play();
     }
-
-    if (btn.classList.contains('addpl')) {
-      addToPlaylistDialog(url); // linki playlist’e ekle
-    }
-
+    if (btn.classList.contains('addpl')) addToPlaylistDialog(url);
     if (btn.classList.contains('cache-yt')) {
       try {
         const res = await fetch(`/stream/${videoId}`);
@@ -312,6 +293,7 @@ tracksEl.addEventListener('click', async (e) => {
     }
   }
 });
+
 
 
 
