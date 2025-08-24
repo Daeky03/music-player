@@ -69,6 +69,13 @@ function playNext(){ currentIndex = idxNext(); playByIndex(currentIndex); }
 function playPrev(){ if(audio.currentTime>3){ audio.currentTime=0; return; } currentIndex = idxPrev(); playByIndex(currentIndex); }
 function seekBy(sec){ audio.currentTime = Math.max(0, Math.min(audio.duration||0, audio.currentTime+sec)); }
 
+
+const btnRew = $('#btnRew');
+const btnFwd = $('#btnFwd');
+
+btnRew?.addEventListener('click', ()=>seekBy(-10));
+btnFwd?.addEventListener('click', ()=>seekBy(10));
+
 // 🔹 Play by index
 async function playByIndex(i){
   if(i<0 || i>=queue.length) return;
@@ -112,25 +119,26 @@ async function renderLibrary(filter=''){
       const row = document.createElement('div');
       row.className = 'flex flex-col sm:flex-row items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10 mb-2';
       row.innerHTML = `
-        <div class="flex items-center gap-3 w-full sm:w-auto">
-          <img src="${t.artwork}" class="w-12 h-12 rounded-lg"/>
-          <div class="ml-2">
-            <div class="font-medium truncate max-w-[200px]">${t.title}</div>
-            <div class="text-xs text-gray-600 dark:text-white/60 truncate max-w-[200px]">${t.artist}</div>
-          </div>
-        </div>
-        <div class="flex gap-2 mt-2 sm:mt-0">
-          <button data-id="${t.id}" class="btn play-btn rounded-full flex items-center justify-center" title="Çal">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5 3v18l15-9z"/></svg>
-          </button>
-          <button data-id="${t.id}" class="btn addpl-btn rounded-full flex items-center justify-center" title="Playlist'e ekle">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5v14m7-7H5"/></svg>
-          </button>
-          <button data-id="${t.id}" class="btn cache-btn rounded-full flex items-center justify-center" title="Cachele">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg>
-          </button>
-        </div>
-      `;
+  <div class="flex items-center gap-3 w-full sm:w-auto">
+    <img src="${t.artwork}" class="w-12 h-12 rounded-lg shadow"/>
+    <div class="ml-2">
+      <div class="font-medium truncate max-w-[200px]">${t.title}</div>
+      <div class="text-xs text-gray-600 dark:text-white/60 truncate max-w-[200px]">${t.artist}</div>
+    </div>
+  </div>
+  <div class="flex gap-2 mt-2 sm:mt-0">
+    <button data-id="${t.id}" class="play-btn w-9 h-9 flex items-center justify-center rounded-full bg-purple-600 text-white hover:bg-purple-700" title="Çal">
+      ▶
+    </button>
+    <button data-id="${t.id}" class="addpl-btn w-9 h-9 flex items-center justify-center rounded-full bg-purple-500 text-white hover:bg-purple-600" title="Playlist'e ekle">
+      ＋
+    </button>
+    <button data-id="${t.id}" class="cache-btn w-9 h-9 flex items-center justify-center rounded-full bg-purple-400 text-white hover:bg-purple-500" title="İndir">
+      ↓
+    </button>
+  </div>
+`;
+      
       tracksEl.appendChild(row);
     });
   }catch(err){ console.error(err); }
