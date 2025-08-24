@@ -287,10 +287,12 @@ tracksEl.addEventListener('click', async (e) => {
     if (btn.classList.contains('play')) {
       // API üzerinden stream linki al
       try {
-        const res = await fetch(`/api/yt-stream?url=${encodeURIComponent(url)}`);
-        const data = await res.json();
+        const params = new URL(encodeURIComponent(url)).searchParams;
+  const videoId = params.get("v");
+        
+      
         if (data.audioUrl) {
-          audio.src = data.audioUrl;
+          audio.src = `/stream/${videoId}`;
           audio.play();
         }
       } catch (err) {
