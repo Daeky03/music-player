@@ -22,17 +22,14 @@ const N_TRANSFORM_FUNC_NAME = "DisTubeNTransformFunc";
 // Aynı Python’daki regexler burada
 const VARIABLE_PART = /[a-zA-Z_\$][a-zA-Z_0-9\$]*/.source;
 
-const DECIPHER_REGEXP = new RegExp(
-  `function(?: ${VARIABLE_PART})?\\(([a-zA-Z])\\)\\{` +
-  `\\1=\\1\\.split\\(""\\);\\s*` +
-  `((?:(?:\\1=)?${VARIABLE_PART}(?:\\["|\\.)${VARIABLE_PART}(?:\\"\\]|)\\(\\1,\\d+\\);)+)` +
-  `return \\1\\.join\\(""\\)` +
-  `\\}`
-, "s");
+const DECIPHER_REGEXP = /\b([a-zA-Z0-9$]{2})\s*=\s*function\(a\)\{a=a\.split\(""\);[\s\S]*?return a\.join\(""\)\}/;
+
 
 const HELPER_REGEXP = new RegExp(
   `var (${VARIABLE_PART})=\\{((?:.*?))\\};`, "s"
 );
+
+
 
 // Fonksiyon çıkartma
 function extractDecipherFunc(jsCode) {
@@ -40,7 +37,7 @@ function extractDecipherFunc(jsCode) {
   if (!helperMatch) throw new Error("Helper not found");
   const helperObject = helperMatch[0];
 
-  const funcMatch = jsCode.match(\b[a-zA-Z0-9$]{2}\s*=\s*function\(a\)\{a=a\.split\(""\);.*?return a\.join\(""\)\}
+  const funcMatch = jsCode.match(DECIPHER_REGEXP);
 );
   if (!funcMatch) throw new Error("Decipher function not found");
 
