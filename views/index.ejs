@@ -1,26 +1,33 @@
-<!-- index.ejs — main content area (renders inside layout) -->
-<div class="space-y-4">
-  <!-- Library view -->
-  <div id="view-library" class="rounded-xl p-4 bg-white/60 dark:bg-panel/60">
-    <h2 class="text-lg font-semibold mb-3">Arama Sonuçları</h2>
-
-    <!-- results container -->
-    <div id="tracks" class="grid gap-3 sm:grid-cols-1 md:grid-cols-1"></div>
-
-    <div id="noResults" class="hidden text-sm text-gray-500 mt-3">
-      Arama yapın — YouTube'dan sonuçlar burada görünecek.
+<div class="grid md:grid-cols-[260px,1fr] gap-4">
+  <aside class="rounded-xl2 p-3 bg-white/80 dark:bg-panel/80 shadow-glass">
+    <div class="mb-3">
+      <input id="search" placeholder="Ara: şarkı, sanatçı, albüm" class="w-full px-3 py-2 rounded-lg bg-black/5 dark:bg-white/10 outline-none" />
     </div>
-  </div>
+    <nav class="space-y-2 text-sm">
+      <button id="tab-library" class="w-full text-left px-3 py-2 rounded-lg bg-black/5 dark:bg-white/10">Kütüphane</button>
+      <button id="tab-playlists" class="w-full text-left px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10">Çalma Listeleri</button>
+      <button id="tab-downloaded" class="w-full text-left px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10">İndirilenler</button>
+    </nav>
+    <div class="mt-4 space-y-2">
+      <button id="newPlaylistBtn" class="w-full px-3 py-2 rounded-full bg-accent text-white hover:bg-accent2">Yeni Playlist</button>
+      <button id="notifyPermBtn" class="w-full px-3 py-2 rounded-full bg-black/5 dark:bg-white/10">Bildirim izni</button>
+    </div>
+  </aside>
 
-  <!-- Playlists -->
-  <div id="view-playlists" class="rounded-xl p-4 bg-white/60 dark:bg-panel/60 hidden">
-    <h2 class="text-lg font-semibold mb-3">Çalma Listeleri</h2>
-    <ul id="playlistList" class="grid gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3"></ul>
-  </div>
+  <section class="space-y-4">
+    <div id="view-library" class="rounded-xl2 p-3 bg-white/80 dark:bg-panel/80 shadow-glass">
+      <h2 class="text-lg font-semibold mb-3">Kütüphane</h2>
+      <div id="tracks" class="grid gap-2"></div>
+    </div>
 
-  <!-- Downloads -->
-  <div id="view-downloaded" class="rounded-xl p-4 bg-white/60 dark:bg-panel/60 hidden">
-    <h2 class="text-lg font-semibold mb-3">İndirilenler (Offline)</h2>
-    <ul id="downloadList" class="space-y-2"></ul>
-  </div>
+    <div id="view-playlists" class="rounded-xl2 p-3 bg-white/80 dark:bg-panel/80 shadow-glass hidden">
+      <h2 class="text-lg font-semibold mb-3">Çalma Listeleri</h2>
+      <ul id="playlistList" class="space-y-2"></ul>
+    </div>
+
+    <div id="view-downloaded" class="rounded-xl2 p-3 bg-white/80 dark:bg-panel/80 shadow-glass hidden">
+      <h2 class="text-lg font-semibold mb-3">İndirilenler (Offline)</h2>
+      <ul id="downloadList" class="space-y-2"></ul>
+    </div>
+  </section>
 </div>
