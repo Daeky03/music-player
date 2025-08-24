@@ -174,12 +174,22 @@ tracksEl.addEventListener('click', async e=>{
   // Cache
   if(btn.classList.contains('cache-btn')){
     try{
-      const streamUrl = `/stream/${id}`;
-      const res = await fetch(streamUrl);
-      if(!res.ok) throw new Error();
-      const clone = res.clone();
+      
+    let res = await fetch(`/stream/${id}`, {
+    headers: { "Range": "bytes=0-" } // tamamını almak için
+  });
+
+  // Content-Type düzeltmesi
+  let fixedRes = new Response(res.body, {
+    status: 200,
+    headers: { "Content-Type": "audio/mp4" }
+  });
+
+   
+      
       const c = await caches.open('offline-audio-v1');
-      await c.put(streamUrl, clone);
+      await c.put(`/stream/${id}`, fixedRes);
+ 
       swalToast('YT Cache tamam');
     }catch{
       swalToast('YT Cache hatası');
