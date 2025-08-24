@@ -186,22 +186,27 @@ async function renderLibrary(filter=''){
   tracksEl.innerHTML='';
 
   const list = tracks.filter(t => (t.title + ' ' + (t.artist||'')).toLowerCase().includes(filter.toLowerCase()));
-  
   list.forEach(t=>{
     const row = document.createElement('div'); 
-    row.className = 'flex flex-col sm:flex-row items-center justify-between p-3 mb-2 rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all';
+    row.className = 'flex flex-col sm:flex-row items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10 mb-2';
     row.innerHTML = `
       <div class="flex items-center gap-3 w-full sm:w-auto">
-        <img src="${t.artwork||'/icons/icon-192.png'}" class="w-12 h-12 rounded-lg object-cover"/>
-        <div class="ml-2 truncate">
-          <div class="font-medium truncate">${t.title}</div>
-          <div class="text-xs text-gray-600 dark:text-white/60 truncate">${t.artist||''}</div>
+        <img src="${t.artwork||'/icons/icon-192.png'}" class="w-12 h-12 rounded-lg"/>
+        <div class="ml-2">
+          <div class="font-medium truncate max-w-[200px]">${t.title}</div>
+          <div class="text-xs text-gray-600 dark:text-white/60 truncate max-w-[200px]">${t.artist||''}</div>
         </div>
       </div>
       <div class="flex items-center gap-2 mt-2 sm:mt-0">
-        <button data-id="${t.id}" class="play btn"><i class="fas fa-play"></i></button>
-        <button data-id="${t.id}" class="addpl btn"><i class="fas fa-plus"></i></button>
-        <button data-id="${t.id}" class="cache btn"><i class="fas fa-download"></i></button>
+        <button data-id="${t.id}" class="play-btn rounded-full border border-gray-400 w-10 h-10 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5 3v18l15-9z"/></svg>
+        </button>
+        <button data-id="${t.id}" class="addpl-btn rounded-full border border-gray-400 w-10 h-10 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5v14m7-7H5"/></svg>
+        </button>
+        <button data-id="${t.id}" class="cache-btn rounded-full border border-gray-400 w-10 h-10 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg>
+        </button>
       </div>
     `;
     tracksEl.appendChild(row);
@@ -215,19 +220,25 @@ async function renderLibrary(filter=''){
 
       ytResults.forEach(t=>{
         const row = document.createElement('div'); 
-        row.className = 'flex flex-col sm:flex-row items-center justify-between p-3 mb-2 rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all';
+        row.className = 'flex flex-col sm:flex-row items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/10 mb-2';
         row.innerHTML = `
           <div class="flex items-center gap-3 w-full sm:w-auto">
-            <img src="${t.thumbnail}" class="w-12 h-12 rounded-lg object-cover"/>
-            <div class="ml-2 truncate">
-              <div class="font-medium truncate">${t.title}</div>
-              <div class="text-xs text-gray-600 dark:text-white/60 truncate">${t.author}</div>
+            <img src="${t.thumbnail}" class="w-12 h-12 rounded-lg"/>
+            <div class="ml-2">
+              <div class="font-medium truncate max-w-[200px]">${t.title}</div>
+              <div class="text-xs text-gray-600 dark:text-white/60 truncate max-w-[200px]">${t.author}</div>
             </div>
           </div>
           <div class="flex items-center gap-2 mt-2 sm:mt-0">
-            <button data-link="${t.url}" class="play btn"><i class="fas fa-play"></i></button>
-            <button data-link="${t.url}" class="addpl btn"><i class="fas fa-plus"></i></button>
-            <button data-link="${t.url}" class="cache-yt btn"><i class="fas fa-download"></i></button>
+            <button data-link="${t.url}" class="play-btn rounded-full border border-gray-400 w-10 h-10 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5 3v18l15-9z"/></svg>
+            </button>
+            <button data-link="${t.url}" class="addpl-btn rounded-full border border-gray-400 w-10 h-10 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5v14m7-7H5"/></svg>
+            </button>
+            <button data-link="${t.url}" class="cache-btn rounded-full border border-gray-400 w-10 h-10 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg>
+            </button>
           </div>
         `;
         tracksEl.appendChild(row);
@@ -238,25 +249,24 @@ async function renderLibrary(filter=''){
   }
 }
 
-tracksEl.addEventListener('click', async (e) => {
+// Event listener
+tracksEl.addEventListener('click', async (e)=>{
   const btn = e.target.closest('button');
-  if (!btn) return;
+  if(!btn) return;
 
   const id = btn.dataset.id;
-  if (id) {
-    const t = tracks.find(x => x.id === id);
-    if (!t) return;
+  const link = btn.dataset.link;
 
-    if (btn.classList.contains('play')) {
-      setQueue([id], 0); // ilk şarkı atlamasın
-      audio.src = t.url;
-      audio.play();
-    }
-    if (btn.classList.contains('addpl')) addToPlaylistDialog(id);
-    if (btn.classList.contains('cache')) {
+  // Local track
+  if(id){
+    const t = tracks.find(x=>x.id===id);
+    if(!t) return;
+    if(btn.classList.contains('play-btn')) setQueue([id], 0);
+    if(btn.classList.contains('addpl-btn')) addToPlaylistDialog(id);
+    if(btn.classList.contains('cache-btn')){
       try {
         const res = await fetch(t.url);
-        if (!res.ok) throw new Error();
+        if(!res.ok) throw new Error();
         const clone = res.clone();
         const c = await caches.open('offline-audio-v1');
         await c.put(t.url, clone);
@@ -268,31 +278,36 @@ tracksEl.addEventListener('click', async (e) => {
     }
   }
 
-  const url = btn.dataset.link;
-  if (url) {
-    const params = new URL(url).searchParams;
+  // YouTube track
+  if(link){
+    const params = new URL(link).searchParams;
     const videoId = params.get("v");
-    if (!videoId) return;
+    if(!videoId) return;
 
-    if (btn.classList.contains('play')) {
-      audio.src = `/stream/${videoId}`;
-      audio.play();
+    if(btn.classList.contains('play-btn')){
+      // Queue'ya ekle ve devam ettir
+      setQueue([`yt:${videoId}`], 0);
     }
-    if (btn.classList.contains('addpl')) addToPlaylistDialog(url);
-    if (btn.classList.contains('cache-yt')) {
+
+    if(btn.classList.contains('addpl-btn')){
+      addToPlaylistDialog(link);
+    }
+
+    if(btn.classList.contains('cache-btn')){
       try {
         const res = await fetch(`/stream/${videoId}`);
-        if (!res.ok) throw new Error();
+        if(!res.ok) throw new Error();
         const clone = res.clone();
         const c = await caches.open('offline-audio-v1');
         await c.put(`/stream/${videoId}`, clone);
         swalToast('YT Cache tamam');
       } catch {
-        swalToast('YT indirme hatası');
+        swalToast('YT Cache hatası');
       }
     }
   }
 });
+
 
 
 
