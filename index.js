@@ -39,7 +39,7 @@ function extractDecipherFunc(jsCode) {
 
   const funcMatch = jsCode.match(/\b([a-zA-Z0-9$]{2})\s*=\s*function\(a\)\{a=a\.split\(""\);[\s\S]*?return a\.join\(""\)\}/);
 
-  if (!funcMatch) throw new Error("Decipher function not found");
+  if (!funcMatch[0]) throw new Error("Decipher function not found");
 
   const decipherFunc = funcMatch[0];
   return `${helperObject};var ${DECIPHER_FUNC_NAME}=${decipherFunc};`;
