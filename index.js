@@ -118,14 +118,13 @@ app.get('/stream/:videoId', async (req, res) => {
         const stream = await yt.getStreamingData(videoId, {
       type: 'audio', // audio, video or video+audio
       quality: 'best', // best, bestefficiency, 144p, 240p, 480p, 720p and so on.
-      format: 'mp3', // media container format,
-      codec: 'mp3',
+      format: 'mp4', // media container format,
           client: 'YTMUSIC'
     });
 
     
     // Streami direkt olarak yanıtla
-   res.setHeader('Content-Type', 'audio/mp3');
+   res.setHeader('Content-Type', 'audio/mp4');
     const response = await fetch(stream.url, { headers: {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
