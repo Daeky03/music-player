@@ -135,6 +135,9 @@ async function renderLibrary(filter=''){
     });
   }catch(err){ console.error(err); }
 }
+const searchInput = document.getElementById('search');
+searchInput?.addEventListener('input', ()=>renderLibrary(searchInput.value));
+
 
 // 🔹 Click events
 tracksEl.addEventListener('click', async e=>{
