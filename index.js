@@ -119,12 +119,12 @@ app.get('/stream/:videoId', async (req, res) => {
         const stream = await yt.download(videoId, {
       type: 'audio', // audio, video or video+audio
       quality: 'best', // best, bestefficiency, 144p, 240p, 480p, 720p and so on.
-      format: 'mp3', // media container format,
+      format: 'opus', // media container format,
       client: 'YTMUSIC'
     });
 
-    res.setHeader('Content-Type', 'audio/mp3');
-    res.setHeader('Content-Disposition', `attachment; filename="${videoId}.mp3"`);
+    res.setHeader('Content-Type', 'audio/opus');
+    res.setHeader('Content-Disposition', `attachment; filename="${videoId}.opus"`);
 
     // Streami direkt olarak yanıtla
         for await (const chunk of Utils.streamToIterable(stream)) {
