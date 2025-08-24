@@ -22,7 +22,7 @@ const N_TRANSFORM_FUNC_NAME = "DisTubeNTransformFunc";
 // Aynı Python’daki regexler burada
 const VARIABLE_PART = /[a-zA-Z_\$][a-zA-Z_0-9\$]*/.source;
 
-const DECIPHER_REGEXP = /\b([a-zA-Z0-9$]{2})\s*=\s*function\(a\)\{a=a\.split\(""\);[\s\S]*?return a\.join\(""\)\}/;
+const DECIPHER_REGEXP = /\b([a-zA-Z0-9$]{2})\s*=\s*function\(a\)\{a=a\.split\(""\);[\s\S]*?return a\.join\(""\)\}/.source;
 
 
 const HELPER_REGEXP = new RegExp(
