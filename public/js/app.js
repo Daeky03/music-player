@@ -73,8 +73,13 @@ function seekBy(sec){ audio.currentTime = Math.max(0, Math.min(audio.duration||0
 const btnRew = $('#btnRew');
 const btnFwd = $('#btnFwd');
 
+const minibtnRew = $('#btnMiniRew');
+const minibtnFwd = $('#btnMiniFf');
+
 btnRew?.addEventListener('click', ()=>seekBy(-10));
 btnFwd?.addEventListener('click', ()=>seekBy(10));
+minibtnRew?.addEventListener('click', ()=>seekBy(-10));
+minibtnFwd?.addEventListener('click', ()=>seekBy(10));
 
 // 🔹 Play by index
 async function playByIndex(i){
